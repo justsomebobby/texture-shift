@@ -87,7 +87,7 @@ body.running .lockable{pointer-events:none;opacity:.55}
 .jr a{flex:1;background:none!important;border:1px solid var(--line);color:var(--text)!important;padding:10px!important;font-weight:600;font-size:14px;text-align:left!important}
 .jr span{font-size:12px;color:var(--dim);white-space:nowrap}
 
-.libgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));column-gap:6px;row-gap:44px;max-height:330px;overflow:auto;-webkit-overflow-scrolling:touch;padding:8px;border:1px solid var(--line);border-radius:12px;background:#0f1218;margin-top:10px}
+.libgrid{overflow:auto;-webkit-overflow-scrolling:touch;padding:8px;border:1px solid var(--line);border-radius:12px;background:#0f1218;margin-top:10px}
 .tile{position:relative;aspect-ratio:1/1;border-radius:8px;border:2px solid transparent;background:repeating-conic-gradient(#20242d 0 25%,#171a21 0 50%) 0 0/10px 10px;overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .tile canvas{width:100%;height:100%;image-rendering:pixelated;display:block}
 .tile.on{border-color:var(--accent)}
@@ -96,7 +96,7 @@ body.running .lockable{pointer-events:none;opacity:.55}
 .libgrid .more{grid-column:1/-1;padding:10px}
 .libgrid .emptyg{grid-column:1/-1;padding:14px;text-align:center;color:var(--dim);font-size:13px}
 #libCaption{min-height:18px;font-size:12px;color:var(--dim);margin-top:6px;word-break:break-word}
-.libtools{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:12px}
+.libtools{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:12px}
 .libtools input[type=search]{grid-column:1/-1;background:#0f1218;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:9px;font-size:15px;min-width:0;width:100%}
 .libtools select{width:100%}
 .selline{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
@@ -127,12 +127,50 @@ details.rules li{margin:4px 0}
 .rg button{margin-top:4px}
 .clearrow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0 0;font-size:12px;color:var(--dim)}
 .clearrow button{padding:5px 10px;font-size:12px}
+
+.preview{position:sticky;top:0;z-index:30;background:var(--bg);margin:8px -14px 0;padding:6px 14px 6px;border-bottom:1px solid var(--line);box-shadow:0 6px 10px -8px #000}
+.pvhead{display:flex;align-items:center;gap:8px;min-height:30px;font-size:13px}
+.pvhead #pvName{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim)}
+.pvhead #pvName b{color:var(--text);font-weight:600}
+.tag2{font-size:11px;color:var(--ok);border:1px solid var(--ok);border-radius:999px;padding:1px 8px;white-space:nowrap}
+button.sm{padding:4px 10px;font-size:12px}
+.pv{gap:5px;margin-top:4px}
+.pv figcaption{font-size:10px}
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{padding:10px 6px;border:0;background:#0f1218;color:var(--dim);font-size:14px;font-weight:600}
+.seg button.on{background:var(--accent);color:#fff}
+.seg button:disabled{opacity:.4}
+label.check{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:var(--dim)}
+body.nohelp .sl small{display:none}
+.chip2{font-size:10px;color:var(--ok);border:1px solid var(--ok);border-radius:999px;padding:0 6px;margin-left:6px;white-space:nowrap}
+.libgrid{display:block;max-height:min(58vh,460px)}
+.gh{display:flex;align-items:center;gap:8px;padding:8px 4px;margin-top:6px;border-top:1px solid var(--line);position:sticky;top:-8px;background:#0f1218;z-index:2}
+.gh:first-child{margin-top:0;border-top:0}
+.gh .tg2{flex:1;min-width:0;background:none;border:0;color:var(--text);text-align:left;font-size:14px;font-weight:600;padding:4px 0;display:flex;gap:8px;align-items:baseline}
+.gh .tg2 i{font-style:normal;color:var(--dim);display:inline-block;width:12px}
+.gh .tg2 span{color:var(--dim);font-weight:400;font-size:12px}
+.gh .pick2{background:none;border:1px solid var(--line);color:var(--dim);border-radius:8px;padding:5px 10px;font-size:12px;white-space:nowrap}
+.gh .pick2.all{border-color:var(--accent);color:var(--text)}
+.tilegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px;padding:4px 0 2px}
+.tile .mem{position:absolute;right:2px;bottom:2px;font-size:9px;line-height:12px;background:var(--accent);color:#fff;border-radius:4px;padding:0 4px;font-weight:700}
+.tile .tag{left:2px;right:auto}
+.selbar{position:sticky;bottom:0;z-index:6;background:var(--card);margin:10px -12px -12px;padding:10px 12px 12px;border-top:1px solid var(--line);border-radius:0 0 14px 14px}
 </style>
 </head>
 <body>
 <main>
 <h1>Texture Shift</h1>
 <p class="sub">Merge a new look into batches of textures part by part: keep the original’s layout and grain as much as you like, take on the new colors, and bring in new features like moss only where the new texture has them. Import whole texture packs into a library, then send textures from it to your jobs. Up to 300 textures per set in a job; the library holds as many as you import.</p>
+
+<div class="preview" id="pvWrap">
+  <div class="pvhead"><span id="pvName">Preview</span><span class="tag2" id="pvTag" style="display:none">own settings</span><button class="ghost sm" id="pvToggle" type="button">Hide</button></div>
+  <div class="pv" id="pvBody" style="display:none">
+    <figure><canvas id="cS"></canvas><figcaption>Original</figcaption></figure>
+    <figure><canvas id="cT"></canvas><figcaption id="capT">New</figcaption></figure>
+    <figure><canvas id="cR"></canvas><figcaption>Result</figcaption></figure>
+    <figure><canvas id="cX"></canvas><figcaption>Tiled 3×3</figcaption></figure>
+  </div>
+</div>
 
 <h2>Library</h2>
 <div class="card" id="libCard">
@@ -157,26 +195,37 @@ details.rules li{margin:4px 0}
   <div id="libBrowse" style="display:none">
     <div class="libtools">
       <input id="libQ" type="search" placeholder="Search names" autocomplete="off" aria-label="Search the library">
-      <select id="libPack" style="grid-column:1/3" aria-label="Pack"></select>
+      <select id="libPack" aria-label="Pack"></select>
       <select id="libSize" aria-label="Size"></select>
+      <select id="libGroup" aria-label="Group by">
+        <option value="type">Group: by type</option><option value="pack">Group: by pack</option><option value="size">Group: by size</option><option value="none">Group: none</option>
+      </select>
+      <select id="libSort" aria-label="Sort">
+        <option value="az">Sort: A to Z</option><option value="za">Sort: Z to A</option><option value="small">Sort: small first</option><option value="large">Sort: large first</option>
+      </select>
     </div>
-    <div class="libgrid" id="libGrid"></div>
-    <div id="libCaption"></div>
     <div class="selline lockable">
       <b id="selCount">0 selected</b>
       <button class="ghost" id="selAll" type="button">Select all</button>
       <button class="ghost" id="selNone" type="button">Clear</button>
+      <button class="ghost" id="grpFold" type="button">Collapse all</button>
     </div>
-    <div class="lead lockable">Add the selection to <b id="jobLabel">Job 1</b> as:</div>
-    <div class="addrow lockable">
-      <button id="addSrc" type="button" disabled>To change</button>
-      <button id="addT0" type="button" disabled>Toward A</button>
-      <button id="addT1" type="button" disabled>Toward B</button>
-      <button id="addT2" type="button" disabled>Toward C</button>
-    </div>
-    <div class="line lockable">
-      <button class="ghost" id="libRemove" type="button" disabled>Remove selected</button>
-      <button class="ghost" id="libClear" type="button">Empty the library</button>
+    <div class="libgrid" id="libGrid"></div>
+    <div id="libCaption"></div>
+    <details class="rules" style="margin-top:8px"><summary>Manage library</summary>
+      <div class="line lockable">
+        <button class="ghost" id="libRemove" type="button" disabled>Remove selected</button>
+        <button class="ghost" id="libClear" type="button">Empty the library</button>
+      </div>
+    </details>
+    <div class="selbar lockable">
+      <div class="lead" style="margin:0 0 6px">Send <b id="selCount2">0</b> to <b id="jobLabel">Job 1</b> as</div>
+      <div class="addrow">
+        <button id="addSrc" type="button" disabled>To change</button>
+        <button id="addT0" type="button" disabled>Toward A</button>
+        <button id="addT1" type="button" disabled>Toward B</button>
+        <button id="addT2" type="button" disabled>Toward C</button>
+      </div>
     </div>
   </div>
 </div>
@@ -209,14 +258,12 @@ details.rules li{margin:4px 0}
 <h2>2 · Check the pairs</h2>
 <div id="pairs" class="lockable"><div class="empty">Pick both sets of textures above.</div></div>
 
-<h2>3 · Settings for this job</h2>
-<div class="preview">
-  <div class="pv">
-    <figure><canvas id="cS"></canvas><figcaption>Original</figcaption></figure>
-    <figure><canvas id="cT"></canvas><figcaption id="capT">New</figcaption></figure>
-    <figure><canvas id="cR"></canvas><figcaption>Result</figcaption></figure>
-    <figure><canvas id="cX"></canvas><figcaption>Result tiled 3×3</figcaption></figure>
-  </div>
+<h2>3 · Settings</h2>
+<div class="card lockable" id="scopeCard" style="margin-bottom:10px">
+  <div class="seg"><button type="button" id="scJob" class="on">Whole job</button><button type="button" id="scTex">This texture only</button></div>
+  <div class="lead" id="scInfo" style="margin-top:8px"></div>
+  <div class="line" id="scActions" style="margin-top:8px"></div>
+  <label class="check"><input type="checkbox" id="helpToggle"> Show help under each slider</label>
 </div>
 <div class="card" id="found" style="display:none;margin-bottom:10px"></div>
 <div class="card lockable" id="blendCard" style="display:none;margin-bottom:10px">
@@ -1302,6 +1349,35 @@ function makeThumb(data,w,h,max){
   return{t,data:out};
 }
 
+
+/* ---------- grouping for the library: a rough "what kind of block is this" from the name ---------- */
+const CATEGORIES=['Animated','Wool & carpet','Concrete','Terracotta','Glass','Planks','Logs & stems','Leaves','Ores','Copper','Metal & gem blocks','Bricks','Deepslate & tuff','Sandstone','Nether & quartz','End','Ocean','Dirt, grass & sand','Ice & snow','Stone','Machines & workstations','Plants & misc','Other'];
+function categorize(stem){
+  const s=stem.toLowerCase(),t=s.split(/[_\-\s.]+/).filter(Boolean),has=(...w)=>w.some(x=>t.includes(x));
+  if(has('wool','carpet'))return'Wool & carpet';
+  if(has('concrete'))return'Concrete';
+  if(s.includes('terracotta')||has('hardened','glazed'))return'Terracotta';
+  if(has('glass'))return'Glass';
+  if(has('planks','plank','mosaic'))return'Planks';
+  if(has('log','stem','wood','hyphae','stripped','roots')||(has('bamboo')&&has('block')))return'Logs & stems';
+  if(has('leaves','leaf'))return'Leaves';
+  if(has('ore','debris'))return'Ores';
+  if(has('copper'))return'Copper';
+  if((has('iron','gold','diamond','emerald','lapis','netherite','redstone','coal','raw')&&has('block'))||has('amethyst'))return'Metal & gem blocks';
+  if(s.includes('brick'))return'Bricks';
+  if(has('deepslate','tuff','calcite','dripstone'))return'Deepslate & tuff';
+  if(has('sandstone'))return'Sandstone';
+  if(has('nether','netherrack','soul','crimson','warped','nylium','basalt','blackstone','magma','glowstone','shroomlight','quartz','wart','gilded'))return'Nether & quartz';
+  if(has('end','purpur','chorus'))return'End';
+  if(has('prismarine','sponge','coral','kelp','conduit'))return'Ocean';
+  if(has('dirt','grass','sand','gravel','clay','mud','podzol','mycelium','farmland','moss','rooted','coarse','path'))return'Dirt, grass & sand';
+  if(has('ice','snow','powder'))return'Ice & snow';
+  if(has('stone','cobblestone','stonebrick','andesite','diorite','granite','obsidian','bedrock','smooth','polished','cobbled'))return'Stone';
+  if(has('crafting','furnace','smoker','blast','dispenser','dropper','observer','piston','tnt','bookshelf','jukebox','note','loom','barrel','composter','lodestone','target','cartography','fletching','smithing','command','spawner','lamp','respawn','beacon','lantern','table'))return'Machines & workstations';
+  if(has('hay','honey','honeycomb','slime','melon','pumpkin','mushroom','bone','sculk','froglight','azalea','lava','water','cactus','beehive','bee','jack'))return'Plants & misc';
+  return'Other';
+}
+
 /* ---------- pack names ---------- */
 async function packName(E,prefix,cache){
   if(cache.has(prefix))return cache.get(prefix);
@@ -1502,7 +1578,7 @@ async function forceImport(records,opt){
 }
 
 const api={LIMITS,GROUPS,importFiles,forceImport,memSource,blobSource,openZip,inflateSync,inflateAny,crc32,sniffType,imageInfo,decodeTGA,
-  scanPath,scanLoose,nameRule,checkDims,classifyPixels,makeThumb,firstFrame,tgaPlausible};
+  scanPath,scanLoose,nameRule,categorize,CATEGORIES,checkDims,classifyPixels,makeThumb,firstFrame,tgaPlausible};
 root.ImportCore=api;
 if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof self!=='undefined'?self:globalThis);
@@ -1512,7 +1588,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports=api;
 <script>
 (function(){
 'use strict';
-const MAX=300,SLOTS=3,LETTERS=['A','B','C'],PREVIEW_MAX=128,MAXJOBS=12,COMBINED_LIMIT=200*1024*1024;
+const MAX=300,SLOTS=3,LETTERS=['A','B','C'],PREVIEW_MAX=128,PREVIEW_FAST=64,MAXJOBS=12,COMBINED_LIMIT=200*1024*1024;
 const $=s=>document.querySelector(s);
 const el=(t,c,txt)=>{const e=document.createElement(t);if(c)e.className=c;if(txt!=null)e.textContent=txt;return e;};
 
@@ -1551,7 +1627,7 @@ function newJob(from){
   if(from){
     j.name=from.name+' copy';j.sources=from.sources.slice();j.targets=from.targets.map(l=>l.slice());j.pairMode=from.pairMode;
     j.set={...from.set};j.slotW=from.slotW.slice();j.slotRole=from.slotRole.slice();j.combine=from.combine;j.alpha=from.alpha;
-    j.pairs=from.pairs.map(p=>({src:p.src,seam:p.seam,tgts:p.tgts.slice()}));
+    j.pairs=from.pairs.map(p=>({src:p.src,seam:p.seam,tgts:p.tgts.slice(),set:p.set?{...p.set}:null}));
     j.selected=j.pairs[from.pairs.indexOf(from.selected)]||null;j.sorted=from.sorted.map(l=>l.slice());
   }
   return j;
@@ -1564,7 +1640,7 @@ const slotWeight=(j,k)=>blendVisible(j)?j.slotW[k]/100:1;
 const slotRole=(j,k)=>blendVisible(j)?j.slotRole[k]:'all';
 const blendMode=j=>blendVisible(j)?j.combine:'mix';
 function optsFor(j,p){
-  const s=j.set;
+  const s=p.set||j.set;
   return{layout:s.layout/100,grain:s.grain/100,chroma:s.chroma/100,tone:s.tone/100,filter:s.filter/100,features:s.features/100,
          seam:p.seam?s.seam/100:0,alpha:j.alpha,mode:blendMode(j)};
 }
@@ -1578,14 +1654,49 @@ for(const g of SETTINGS){
     const top=el('div','top');const out=el('output',null,String(it.def));
     top.append(el('span',null,it.label),out);
     const inp=document.createElement('input');inp.type='range';inp.min=0;inp.max=100;inp.value=it.def;inp.id='s_'+it.key;
-    inp.addEventListener('input',()=>{out.textContent=inp.value;J.set[it.key]=+inp.value;schedulePreview();});
+    inp.addEventListener('input',()=>{out.textContent=inp.value;editSet()[it.key]=+inp.value;schedulePreview(true);});
     w.append(top,inp,el('small',null,it.hint));
     d.append(w);it.out=out;it.inp=inp;
   }
   sbox.append(d);
 }
-function showSettings(){for(const g of SETTINGS)for(const it of g.items){it.inp.value=J.set[it.key];it.out.textContent=J.set[it.key];}}
+let scope='job';
+const effSet=()=>(scope==='tex'&&J.selected&&J.selected.set)||J.set;
+function editSet(){
+  if(scope==='tex'&&J.selected){
+    const p=J.selected;
+    if(!p.set){p.set={...J.set};if(p.badge)p.badge.style.display='';updateScopeUI();}
+    return p.set;
+  }
+  return J.set;
+}
+function showSettings(){const e=effSet();for(const g of SETTINGS)for(const it of g.items){it.inp.value=e[it.key];it.out.textContent=e[it.key];}}
+function clearOverride(p){p.set=null;if(p.badge)p.badge.style.display='none';showSettings();updateScopeUI();schedulePreview();}
+function setScope(s){scope=s;updateScopeUI();showSettings();schedulePreview();}
+function actBtn(text,fn){const b=el('button','ghost sm',text);b.type='button';b.addEventListener('click',fn);$('#scActions').append(b);}
+function updateScopeUI(){
+  if(!J)return;
+  const p=J.selected;
+  if(scope==='tex'&&!p)scope='job';
+  $('#scJob').classList.toggle('on',scope==='job');$('#scTex').classList.toggle('on',scope==='tex');
+  $('#scTex').disabled=!p;
+  const nCustom=J.pairs.filter(q=>q.set).length;
+  $('#scActions').textContent='';
+  if(scope==='tex'){
+    $('#scInfo').textContent='Editing only “'+p.src.name+'”. Tap another texture in the list and it keeps its own values.'+(p.set?'':' It follows the job until you move a slider.');
+    if(p.set)actBtn('Back to job settings',()=>clearOverride(p));
+    actBtn('Use these for the whole job',()=>{J.set={...effSet()};if(p.set){p.set=null;if(p.badge)p.badge.style.display='none';}showSettings();updateScopeUI();schedulePreview();});
+  }else{
+    $('#scInfo').textContent='Changes apply to every texture in this job'+(nCustom?', except the '+nCustom+' with their own settings.':'.');
+    if(nCustom)actBtn('Clear '+nCustom+' own setting'+(nCustom===1?'':'s'),()=>{for(const q of J.pairs){if(q.set)clearOverride(q);}});
+  }
+  $('#reset').textContent=scope==='tex'?'Reset to job':'Reset sliders';
+  const tag=$('#pvTag');if(tag)tag.style.display=p&&p.set?'':'none';
+}
+$('#scJob').addEventListener('click',()=>setScope('job'));
+$('#scTex').addEventListener('click',()=>setScope('tex'));
 $('#reset').addEventListener('click',()=>{
+  if(scope==='tex'&&J.selected){clearOverride(J.selected);return;}
   J.set={...DEF};J.slotW=[100,100,100];J.slotRole=['all','all','all'];J.combine='mix';
   showSettings();showSlots();$('#combine').value='mix';updateHint();schedulePreview();
 });
@@ -1602,7 +1713,7 @@ for(let k=0;k<SLOTS;k++){
   [['all','Takes everything'],['color','Color only'],['layout','Layout only']].forEach(([v,t])=>role.add(new Option(t,v)));
   top.append(el('span',null,'Target '+LETTERS[k]),role,out);
   const inp=document.createElement('input');inp.type='range';inp.min=0;inp.max=100;inp.value=100;
-  inp.addEventListener('input',()=>{out.textContent=inp.value;J.slotW[k]=+inp.value;schedulePreview();});
+  inp.addEventListener('input',()=>{out.textContent=inp.value;J.slotW[k]=+inp.value;schedulePreview(true);});
   role.addEventListener('change',()=>{J.slotRole[k]=role.value;schedulePreview();});
   w.append(top,inp);$('#slots').append(w);
   slotCtl.push({wrap:w,inp,out,role});
@@ -1636,15 +1747,15 @@ $('#presetSel').addEventListener('change',()=>{
   if(!v)return;
   const p=v.startsWith('b:')?BUILTIN[v.slice(2)]:(savedPresets()||{})[v.slice(2)];
   if(!p)return;
-  J.set=cleanPreset(p);showSettings();schedulePreview();
-  $('#presetMsg').textContent='Applied “'+v.slice(2)+'” to '+J.name+'.';
+  Object.assign(editSet(),cleanPreset(p));showSettings();schedulePreview();
+  $('#presetMsg').textContent='Applied “'+v.slice(2)+'” to '+(scope==='tex'&&J.selected?J.selected.src.name:J.name)+'.';
 });
 $('#presetSave').addEventListener('click',()=>{
   const name=$('#presetName').value.trim().slice(0,30);
   if(!name){$('#presetMsg').textContent='Type a name for the preset first.';return;}
   const sp=savedPresets();
   if(sp===null){$('#presetMsg').textContent='This browser is not allowing saved presets here.';return;}
-  sp[name]={...J.set};
+  sp[name]={...effSet()};
   if(!storePresets(sp)){$('#presetMsg').textContent='This browser is not allowing saved presets here.';return;}
   $('#presetName').value='';fillPresetSelect('u:'+name);$('#presetMsg').textContent='Saved “'+name+'”. Pick it from the list on any job.';
 });
@@ -1680,7 +1791,7 @@ function showJob(){
   $('#nSrc').textContent=J.sources.length+' selected';
   for(let k=0;k<SLOTS;k++)$('#nT'+k).textContent=J.targets[k].length+' selected';
   msg('');
-  refreshSlotUI();renderPairs();renderJobBar();schedulePreview();
+  refreshSlotUI();renderPairs();renderJobBar();updateScopeUI();renderLib(true);schedulePreview();
 }
 $('#jobNew').addEventListener('click',()=>{if(running||jobs.length>=MAXJOBS)return;const j=newJob();jobs.push(j);armedDelete=0;J=j;showJob();});
 $('#jobDup').addEventListener('click',()=>{if(running||jobs.length>=MAXJOBS)return;const j=newJob(J);jobs.splice(jobs.indexOf(J)+1,0,j);armedDelete=0;J=j;showJob();});
@@ -1718,7 +1829,7 @@ async function decodeBrowser(bytes,type){
 
 /* ---------- the library ---------- */
 const PAGE=150;
-const lib={items:[],byUid:new Map(),known:new Map(),sel:new Set(),q:'',pack:'',size:'',shown:PAGE,rejected:[],importing:false,stop:false,view:[],dirty:true,last:null};
+const lib={items:[],byUid:new Map(),known:new Map(),sel:new Set(),q:'',pack:'',size:'',rejected:[],importing:false,stop:false,view:[],last:null};
 const fmt=n=>n.toLocaleString();
 const plural=(n,w)=>fmt(n)+' '+w+(n===1?'':'s');
 function libMsg(t,err){const m=$('#libMsg');m.textContent=t||'';m.className=err?'err':'';}
@@ -1733,7 +1844,6 @@ function entryFor(it){
 }
 function addItems(list){
   for(const it of list){if(lib.byUid.has(it.uid))continue;lib.items.push(it);lib.byUid.set(it.uid,it);}
-  lib.dirty=true;
 }
 function toInputs(files){
   return files.map(f=>({name:f.name,path:f.webkitRelativePath||'',source:ImportCore.blobSource(f)}));
@@ -1830,11 +1940,17 @@ async function forceRejected(list,btn){
   renderRejected(true);renderLib();
 }
 
-/* ----- browsing ----- */
-const natCmp=(a,b)=>a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'});
-function sortedItems(){
-  if(lib.dirty){lib.items.sort((a,b)=>natCmp(a.pack,b.pack)||natCmp(a.name,b.name));lib.dirty=false;lib.packs=null;}
-  return lib.items;
+/* ----- browsing: sort, group, select ----- */
+const coll=new Intl.Collator(undefined,{numeric:true,sensitivity:'base'});
+const natCmp=(a,b)=>coll.compare(a,b);
+const GROUP_CAP=240;
+lib.group='type';lib.sort='az';lib.open=new Map();lib.gshown=new Map();lib.hdr=new Map();lib.groups=[];
+function sortCmp(){
+  const byName=(a,b)=>natCmp(a.name,b.name)||natCmp(a.pack,b.pack);
+  if(lib.sort==='za')return(a,b)=>byName(b,a);
+  if(lib.sort==='small')return(a,b)=>a.w-b.w||byName(a,b);
+  if(lib.sort==='large')return(a,b)=>b.w-a.w||byName(a,b);
+  return byName;
 }
 function fillFilters(){
   const items=lib.items;
@@ -1852,62 +1968,134 @@ function fillFilters(){
 }
 function applyFilter(){
   const q=lib.q.trim().toLowerCase(),sz=lib.size?+lib.size:0;
-  lib.view=sortedItems().filter(it=>(!lib.pack||it.pack===lib.pack)&&(!sz||it.w===sz)&&(!q||it.stem.toLowerCase().includes(q)||it.pack.toLowerCase().includes(q)));
+  lib.view=lib.items.filter(it=>(!lib.pack||it.pack===lib.pack)&&(!sz||it.w===sz)&&(!q||it.stem.toLowerCase().includes(q)||it.pack.toLowerCase().includes(q))).sort(sortCmp());
 }
-function tileFor(it){
+function groupOf(it){
+  switch(lib.group){
+    case'type':return it.animated?'Animated':ImportCore.categorize(it.stem);
+    case'pack':return it.pack;
+    case'size':return it.w+'×'+it.w;
+    default:return'';
+  }
+}
+function buildGroups(){
+  if(lib.group==='none')return[{key:'',items:lib.view}];
+  const m=new Map();
+  for(const it of lib.view){const k=groupOf(it);if(!m.has(k))m.set(k,[]);m.get(k).push(it);}
+  const keys=[...m.keys()];
+  if(lib.group==='type'){const o=ImportCore.CATEGORIES;keys.sort((a,b)=>o.indexOf(a)-o.indexOf(b));}
+  else if(lib.group==='size')keys.sort((a,b)=>parseInt(a)-parseInt(b));
+  else keys.sort(natCmp);
+  return keys.map(k=>({key:k,items:m.get(k)}));
+}
+/* which library textures are already in the current job: O = to change, A/B/C = targets */
+function membership(){
+  const m=new Map();
+  const add=(list,ch)=>{for(const e of list)m.set(e.id,(m.get(e.id)||'')+ch);};
+  if(J){add(J.sources,'O');for(let k=0;k<SLOTS;k++)add(J.targets[k],LETTERS[k]);}
+  return m;
+}
+function refreshHdr(g){
+  const h=lib.hdr.get(g.key);if(!h)return;
+  let n=0;for(const it of g.items)if(lib.sel.has(it.uid))n++;
+  h.count.textContent=fmt(g.items.length)+(n?' · '+fmt(n)+' selected':'');
+  h.pick.textContent=n===g.items.length?'Unselect':n?'Select rest':'Select all';
+  h.pick.classList.toggle('all',n===g.items.length&&n>0);
+}
+function tileFor(it,g,mem){
   const d=el('div','tile'+(lib.sel.has(it.uid)?' on':''));
   d.setAttribute('role','button');d.title=it.name;
   const t=it.thumb.t,c=document.createElement('canvas');c.width=c.height=t;
   c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(it.thumb.data),t,t),0,0);
   d.append(c);
   if(it.animated)d.append(el('span','tag','▶'));
+  const m=mem.get(it.uid);if(m)d.append(el('span','mem',m));
   d.addEventListener('click',()=>{
     if(lib.sel.has(it.uid)){lib.sel.delete(it.uid);d.classList.remove('on');}else{lib.sel.add(it.uid);d.classList.add('on');}
-    $('#libCaption').textContent=it.stem+' · '+it.pack+' · '+it.w+'×'+it.h+(it.animated?' · animated, first frame is used':'')+(it.translucent?' · translucent':'')+(it.forced?' · imported anyway':'');
-    updateSelection();
+    $('#libCaption').textContent=it.stem+' · '+it.pack+' · '+it.w+'×'+it.w+(it.animated?' · animated, first frame is used':'')+(it.translucent?' · translucent':'')+(it.forced?' · imported anyway':'');
+    refreshHdr(g);updateSelection();
   });
   return d;
 }
-function renderLib(){
+function renderLib(keepScroll){
   const has=lib.items.length>0;
   $('#libBrowse').style.display=has?'':'none';
   if(!has)return;
   fillFilters();applyFilter();
-  const grid=$('#libGrid');grid.textContent='';
-  const n=Math.min(lib.shown,lib.view.length),frag=document.createDocumentFragment();
-  for(let i=0;i<n;i++)frag.append(tileFor(lib.view[i]));
-  if(!lib.view.length)frag.append(el('div','emptyg','Nothing matches that search.'));
-  if(lib.view.length>n){
-    const b=el('button','ghost more','Show '+Math.min(PAGE,lib.view.length-n)+' more ('+fmt(lib.view.length-n)+' left)');b.type='button';
-    b.addEventListener('click',()=>{lib.shown+=PAGE;const top=grid.scrollTop;renderLib();grid.scrollTop=top;});
-    frag.append(b);
+  const grid=$('#libGrid'),top=grid.scrollTop;
+  grid.textContent='';lib.hdr=new Map();
+  const groups=buildGroups();lib.groups=groups;
+  const mem=membership(),frag=document.createDocumentFragment(),grouped=lib.group!=='none';
+  for(const g of groups){
+    const gk=lib.group+'|'+g.key;
+    const open=!grouped||(lib.open.has(gk)?lib.open.get(gk):(lib.view.length<=GROUP_CAP||groups.length===1));
+    if(grouped){
+      const h=el('div','gh');
+      const tg=el('button','tg2');tg.type='button';
+      const count=el('span');
+      tg.append(el('i',null,open?'▾':'▸'),document.createTextNode(g.key||'(none)'),count);
+      tg.addEventListener('click',()=>{lib.open.set(gk,!open);renderLib(true);});
+      const pick=el('button','pick2','Select all');pick.type='button';
+      pick.addEventListener('click',()=>{
+        const all=g.items.every(it=>lib.sel.has(it.uid));
+        for(const it of g.items){if(all)lib.sel.delete(it.uid);else lib.sel.add(it.uid);}
+        renderLib(true);
+      });
+      h.append(tg,pick);frag.append(h);
+      lib.hdr.set(g.key,{count,pick});refreshHdr(g);
+    }
+    if(open){
+      const shown=lib.gshown.get(gk)||GROUP_CAP,n=Math.min(shown,g.items.length);
+      const tiles=el('div','tilegrid');
+      for(let i=0;i<n;i++)tiles.append(tileFor(g.items[i],g,mem));
+      frag.append(tiles);
+      if(g.items.length>n){
+        const b=el('button','ghost more','Show '+Math.min(GROUP_CAP,g.items.length-n)+' more ('+fmt(g.items.length-n)+' left)');b.type='button';
+        b.addEventListener('click',()=>{lib.gshown.set(gk,shown+GROUP_CAP);renderLib(true);});
+        frag.append(b);
+      }
+    }
   }
+  if(!lib.view.length)frag.append(el('div','emptyg','Nothing matches that search.'));
   grid.append(frag);
+  if(keepScroll)grid.scrollTop=top;
   updateSelection();
 }
 function updateSelection(){
   const n=lib.sel.size;
   $('#selCount').textContent=fmt(n)+' selected · '+fmt(lib.view.length)+' shown';
+  $('#selCount2').textContent=fmt(n)+' texture'+(n===1?'':'s');
   $('#selAll').textContent='Select all '+fmt(lib.view.length);
   $('#selAll').disabled=!lib.view.length;
+  const grouped=lib.group!=='none';
+  $('#grpFold').style.display=grouped?'':'none';
+  const anyOpen=lib.groups.some(g=>{const k=lib.group+'|'+g.key;return lib.open.has(k)?lib.open.get(k):(lib.view.length<=GROUP_CAP||lib.groups.length===1);});
+  $('#grpFold').textContent=anyOpen?'Collapse all':'Expand all';
   for(const id of['addSrc','addT0','addT1','addT2','libRemove'])$('#'+id).disabled=!n;
 }
 let qTimer=0;
-$('#libQ').addEventListener('input',()=>{clearTimeout(qTimer);qTimer=setTimeout(()=>{lib.q=$('#libQ').value;lib.shown=PAGE;renderLib();},150);});
-$('#libPack').addEventListener('change',()=>{lib.pack=$('#libPack').value;lib.shown=PAGE;renderLib();});
-$('#libSize').addEventListener('change',()=>{lib.size=$('#libSize').value;lib.shown=PAGE;renderLib();});
-$('#selAll').addEventListener('click',()=>{for(const it of lib.view)lib.sel.add(it.uid);lib.shown=Math.max(lib.shown,PAGE);renderLib();});
-$('#selNone').addEventListener('click',()=>{lib.sel.clear();renderLib();});
+$('#libQ').addEventListener('input',()=>{clearTimeout(qTimer);qTimer=setTimeout(()=>{lib.q=$('#libQ').value;lib.gshown.clear();renderLib();},150);});
+$('#libPack').addEventListener('change',()=>{lib.pack=$('#libPack').value;lib.gshown.clear();renderLib();});
+$('#libSize').addEventListener('change',()=>{lib.size=$('#libSize').value;lib.gshown.clear();renderLib();});
+$('#libGroup').addEventListener('change',()=>{lib.group=$('#libGroup').value;lib.gshown.clear();renderLib();});
+$('#libSort').addEventListener('change',()=>{lib.sort=$('#libSort').value;renderLib();});
+$('#selAll').addEventListener('click',()=>{for(const it of lib.view)lib.sel.add(it.uid);renderLib(true);});
+$('#selNone').addEventListener('click',()=>{lib.sel.clear();renderLib(true);});
+$('#grpFold').addEventListener('click',()=>{
+  const anyOpen=$('#grpFold').textContent.startsWith('Collapse');
+  for(const g of lib.groups)lib.open.set(lib.group+'|'+g.key,!anyOpen);
+  renderLib();
+});
 $('#libRemove').addEventListener('click',()=>{
   for(const id of lib.sel){const it=lib.byUid.get(id);if(it){lib.known.delete(it.key);lib.byUid.delete(id);}}
-  lib.items=lib.items.filter(it=>lib.byUid.has(it.uid));lib.sel.clear();lib.dirty=true;renderLib();libMsg('Removed from the library. Jobs that already use them keep them.');
+  lib.items=lib.items.filter(it=>lib.byUid.has(it.uid));lib.sel.clear();renderLib();libMsg('Removed from the library. Jobs that already use them keep them.');
 });
 let armedClear=0;
 $('#libClear').addEventListener('click',()=>{
   const b=$('#libClear');
   if(!armedClear){armedClear=1;b.textContent='Tap again to empty';setTimeout(()=>{armedClear=0;b.textContent='Empty the library';},3000);return;}
   armedClear=0;b.textContent='Empty the library';
-  lib.items=[];lib.byUid.clear();lib.known.clear();lib.sel.clear();lib.rejected=[];lib.dirty=true;lib.shown=PAGE;
+  lib.items=[];lib.byUid.clear();lib.known.clear();lib.sel.clear();lib.rejected=[];lib.gshown.clear();lib.open.clear();
   renderRejected(false);renderLib();libMsg('Library emptied. Jobs that already use textures keep them.');
 });
 
@@ -1927,7 +2115,7 @@ function addToJob(which){
   refreshSlotUI();renderPairs();schedulePreview();renderJobBar();
   const label=which==='sources'?'the textures to change':'Toward '+LETTERS[which];
   msg('Added '+plural(added,'texture')+' to '+label+' in '+j.name+'.'+(over?' '+plural(over,'texture')+' did not fit: a set holds up to '+MAX+'.':'')+(items.length-added-over?' '+plural(items.length-added-over,'texture')+' were already there.':''),over>0);
-  libMsg('');
+  lib.sel.clear();renderLib(true);libMsg('');
 }
 $('#addSrc').addEventListener('click',()=>addToJob('sources'));
 for(let k=0;k<SLOTS;k++)$('#addT'+k).addEventListener('click',()=>addToJob(k));
@@ -1995,18 +2183,18 @@ async function readData(entry,tw,th){
   cache.set(key,d);if(cache.size>24)cache.delete(cache.keys().next().value);
   return d;
 }
-const natural=(a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true,sensitivity:'base'});
+const natural=(a,b)=>coll.compare(a.name,b.name);
 const baseName=n=>n.replace(/\.[^.]+$/,'').toLowerCase();
 function msg(t,err){const m=$('#msg');m.textContent=t||'';m.className=err?'err':'';}
 
 /* ---------- pairs ---------- */
 function rebuildPairs(j){
-  const keepSeam=new Map((j.pairs||[]).map(p=>[p.src.id,p.seam]));
+  const keepSeam=new Map((j.pairs||[]).map(p=>[p.src.id,p.seam])),keepSet=new Map((j.pairs||[]).filter(p=>p.set).map(p=>[p.src.id,p.set]));
   const S=[...j.sources].sort(natural);
   j.sorted=j.targets.map(l=>[...l].sort(natural));
   const byName=j.pairMode==='name';
   const maps=j.sorted.map(l=>new Map(l.map(t=>[baseName(t.name),t])));
-  j.pairs=S.map((s,i)=>({src:s,seam:keepSeam.has(s.id)?keepSeam.get(s.id):true,tgts:[0,1,2].map(k=>byName?(maps[k].get(baseName(s.name))||null):(j.sorted[k][i]||null))}));
+  j.pairs=S.map((s,i)=>({src:s,seam:keepSeam.has(s.id)?keepSeam.get(s.id):true,set:keepSet.get(s.id)||null,tgts:[0,1,2].map(k=>byName?(maps[k].get(baseName(s.name))||null):(j.sorted[k][i]||null))}));
   j.selected=j.pairs.find(hasTarget)||j.pairs[0]||null;
 }
 function thumbImg(entry){
@@ -2019,6 +2207,7 @@ function renderPairs(){
   J.pairs.forEach(p=>{
     const row=el('div','row'+(p===J.selected?' sel':''));
     const nm=el('div','nm',p.src.name);nm.title=p.src.name;
+    const badge=el('span','chip2','own');badge.style.display=p.set?'':'none';p.badge=badge;nm.append(badge);
     const tg=el('div','tg');
     for(let k=0;k<SLOTS;k++){
       if(!slotShown(J,k))continue;
@@ -2065,7 +2254,7 @@ function renderPairs(){
   updateStart();
 }
 function choose(p,row){
-  J.selected=p;
+  J.selected=p;showSettings();updateScopeUI();
   document.querySelectorAll('.row.sel').forEach(r=>r.classList.remove('sel'));
   if(row)row.classList.add('sel');
   schedulePreview();
@@ -2114,18 +2303,40 @@ function renderFound(report){
   box.append(el('small',null,'Parts are the distinct materials in a texture (for example brick faces and mortar). Each part of the original is matched with one in the new texture; parts with no match become new features.'));
 }
 
-/* ---------- preview ---------- */
-let raf=0,seq=0;
-function schedulePreview(){cancelAnimationFrame(raf);raf=requestAnimationFrame(renderPreview);}
+/* ---------- preview (pinned at the top of the page) ---------- */
+let raf=0,seq=0,fastT=0,pvHidden=false;
+function schedulePreview(fast){
+  cancelAnimationFrame(raf);clearTimeout(fastT);
+  raf=requestAnimationFrame(()=>renderPreview(fast?PREVIEW_FAST:PREVIEW_MAX));
+  const p=J&&J.selected;
+  if(fast&&p&&Math.max(p.src.w,p.src.h)>PREVIEW_FAST)fastT=setTimeout(()=>schedulePreview(false),200);
+}
 function put(c,imgData){c.width=imgData.width;c.height=imgData.height;c.getContext('2d').putImageData(imgData,0,0);}
-function clearPreview(){for(const id of['#cS','#cT','#cR','#cX']){const c=$(id);c.width=c.width;}renderFound(null);}
-async function renderPreview(){
-  const my=++seq,j=J,p=j.selected;
+function setPvBody(show){
+  const b=$('#pvBody'),want=show&&!pvHidden;
+  if((b.style.display!=='none')===want)return;
+  const wrap=$('#pvWrap'),h0=wrap.offsetHeight;
+  b.style.display=want?'':'none';
+  const d=wrap.offsetHeight-h0;
+  if(d&&window.scrollY>0)window.scrollBy(0,d);   /* keep what you are looking at where it was */
+}
+function setPvName(p){
+  const n=$('#pvName');n.textContent='';
+  if(!p){n.textContent='The preview appears once a texture has a target.';return;}
+  n.append(el('b',null,p.src.name),document.createTextNode(' · '+p.src.w+'×'+p.src.h));
+}
+$('#pvToggle').addEventListener('click',()=>{
+  pvHidden=!pvHidden;$('#pvToggle').textContent=pvHidden?'Show':'Hide';
+  const p=J&&J.selected;setPvBody(!!(p&&hasTarget(p)));if(!pvHidden)schedulePreview();
+});
+function clearPreview(){for(const id of['#cS','#cT','#cR','#cX']){const c=$(id);c.width=c.width;}renderFound(null);setPvBody(false);setPvName(null);$('#pvTag').style.display='none';}
+async function renderPreview(limit){
+  const lim=limit||PREVIEW_MAX,my=++seq,j=J,p=j.selected;
   if(!p||!hasTarget(p)){clearPreview();return;}
   try{
     let S=await readData(p.src);
-    if(Math.max(S.width,S.height)>PREVIEW_MAX){
-      const k=PREVIEW_MAX/Math.max(S.width,S.height);
+    if(Math.max(S.width,S.height)>lim){
+      const k=lim/Math.max(S.width,S.height);
       S=await readData(p.src,Math.max(1,Math.round(S.width*k)),Math.max(1,Math.round(S.height*k)));
     }
     const tl=await targetsFor(j,p,S);
@@ -2138,11 +2349,12 @@ async function renderPreview(){
     const tmp=document.createElement('canvas');tmp.width=W;tmp.height=H;tmp.getContext('2d').putImageData(R,0,0);
     const xc=X.getContext('2d');xc.imageSmoothingEnabled=false;
     for(let y=0;y<3;y++)for(let x=0;x<3;x++)xc.drawImage(tmp,x*W,y*H);
-    $('#capT').textContent=tl.length>1?'New (A shown)':'New';
+    $('#capT').textContent=tl.length>1?'New (A)':'New';
+    setPvName(p);$('#pvTag').style.display=p.set?'':'none';setPvBody(true);
     renderFound(res.report);
     if(!running){
       if(res.skipped)$('#status').textContent='Preview: '+res.skipped+'.';
-      else if(Math.max(p.src.w,p.src.h)>PREVIEW_MAX)$('#status').textContent='Preview is shown smaller for speed; the saved files use the full size.';
+      else if(lim===PREVIEW_MAX&&Math.max(p.src.w,p.src.h)>PREVIEW_MAX)$('#status').textContent='Preview is shown smaller for speed; the saved files use the full size.';
     }
   }catch(e){msg(e.message,true);}
 }
@@ -2224,6 +2436,13 @@ async function run(){
   $('#status').textContent='Done.';
 }
 $('#start').addEventListener('click',()=>{if(running){stopFlag=true;}else run();});
+
+/* ---------- slider help (hidden by default so the page stays short) ---------- */
+const HK='texture_shift_help_v1';
+function helpOn(){try{return localStorage.getItem(HK)==='1';}catch(e){return false;}}
+function applyHelp(on){document.body.classList.toggle('nohelp',!on);$('#helpToggle').checked=on;}
+$('#helpToggle').addEventListener('change',()=>{const on=$('#helpToggle').checked;applyHelp(on);try{localStorage.setItem(HK,on?'1':'0');}catch(e){}});
+applyHelp(helpOn());
 
 /* ---------- start ---------- */
 jobs=[newJob()];J=jobs[0];
