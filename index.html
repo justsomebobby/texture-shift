@@ -186,6 +186,13 @@ body.mode-import .libh{display:none}
 .addrow4 button:disabled{opacity:.35;border-color:var(--line)}
 .exvars3{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;margin-top:2px}
 .step{margin:22px 0 8px;font-size:18px}
+.mset{border-top:1px solid var(--line);padding:10px 0 2px;margin-top:10px}
+.mset:first-of-type{border-top:0;margin-top:6px}
+.mset b{font-size:14px;word-break:break-all}
+.mset .st{color:var(--dim);font-size:12px;margin:4px 0}
+.mset .row2{display:flex;gap:6px;margin-top:8px}
+.mset .row2 input{flex:1;min-width:0}
+.mset details{margin-top:6px;font-size:12px;color:var(--dim)}
 .selbar{position:sticky;bottom:0;z-index:6;background:var(--card);margin:10px -12px -12px;padding:10px 12px 12px;border-top:1px solid var(--line);border-radius:0 0 14px 14px}
 </style>
 </head>
@@ -206,6 +213,7 @@ body.mode-import .libh{display:none}
     <label class="pick"><b>Import a folder</b><span>an unzipped pack (desktop and iPad)</span><input id="fLibDir" type="file" webkitdirectory multiple></label>
   </div>
   <label class="check importonly" style="margin-top:8px"><input type="checkbox" id="impPlants" checked> Also import plants and cut-out shapes (they become plant blocks)</label>
+  <label class="check importonly"><input type="checkbox" id="impModels" checked> Also read Java block models from .jar / .zip mods (custom shapes)</label>
   <div class="bar" id="libBar"><i></i></div>
   <div class="line"><button class="ghost" id="libStop" type="button" style="display:none">Stop import</button></div>
   <div id="libMsg"></div>
@@ -267,8 +275,14 @@ body.mode-import .libh{display:none}
   </div>
 </div>
 </div></div>
+<div class="card" id="mdlCard" style="display:none;margin-top:10px">
+  <b style="font-size:14px">Mod shapes found</b>
+  <div class="lead" style="margin:4px 0 0">Custom shapes read from the mod\u2019s own models. Every shape is imported: faces with no texture or UV are repaired, never rejected.</div>
+  <div id="mdlSets"></div>
+</div>
 <h2 class="step">2 · Your Minecraft pack</h2>
 <div class="card" id="mcCard">
+  <div id="mdlChosen" style="display:none" class="mcrow"><div class="mcn"><b id="mdlChosenT"></b><small>custom-shape blocks from mods</small></div><button class="ghost sm" id="mdlChosenX" type="button">Remove</button></div>
   <div id="mcEmpty" class="empty">Nothing here yet. Select textures in the library above, then tap <b>Auto</b>, <b>Blocks</b>, <b>Plants</b> or <b>Tall plants</b>.</div>
   <div id="mcTools" style="display:none">
     <div id="mcHead"><b id="mcCount"></b><button class="ghost sm" id="mcClear" type="button">Remove all</button></div>
@@ -1907,7 +1921,7 @@ const cond=(name,v)=>`query.block_state('${name}') == ${typeof v==='string'?"'"+
 const geoId=(ns,key)=>`geometry.${ns}.${key}`;
 
 /* ---------- Foundry format versions and engine floors ---------- */
-const FV={cube:'1.26.0',log:'1.26.0',faces:'1.26.0',fence:'1.26.0',wall:'1.26.0',slab:'1.21.90',stair:'1.26.0',stairCorner:'1.26.40',layer:'1.21.90',plant:'1.26.20',tall:'1.26.40'};
+const FV={cube:'1.26.0',log:'1.26.0',faces:'1.26.0',fence:'1.26.0',wall:'1.26.0',slab:'1.21.90',stair:'1.26.0',stairCorner:'1.26.40',layer:'1.21.90',plant:'1.26.20',tall:'1.26.40',model:'1.21.90'};
 /* partial-height blocks: height in sixteenths of a block */
 const LAYERS={eighth:{h:2,suffix:'_eighth',label:'Eighth'},quarter:{h:4,suffix:'_quarter',label:'Quarter'},three_eighths:{h:6,suffix:'_three_eighths',label:'Three-Eighths'},three_quarters:{h:12,suffix:'_three_quarters',label:'Three-Quarters'}};
 const layerCubes=h=>[[[-8,0,-8],[16,h,16]]];
@@ -1988,6 +2002,33 @@ function blockDoc(b,ns,opt){
     }
   }
   throw new Error('unknown shape '+b.shape);
+}
+/* ---------- blocks made from Java models (custom geometry, one material instance per texture) ---------- */
+function modelGeometryDoc(id,cubes,keyMap){
+  return{format_version:'1.21.0','minecraft:geometry':[{description:{identifier:id,texture_width:16,texture_height:16},bones:[{name:'root',pivot:[0,0,0],cubes:cubes.map(c=>{
+    const o={origin:c.origin,size:c.size,uv:{}};
+    if(c.pivot){o.pivot=c.pivot;o.rotation=c.rotation;}
+    for(const[d,f]of Object.entries(c.uv))o.uv[d]={uv:f.uv,uv_size:f.uv_size,material_instance:keyMap.get(f.material_instance)};
+    return o;})}]}]};
+}
+/* returns null when a block has no texture at all */
+function modelBlockParts(b,ns,tex,nativeKeys,keyOf){
+  const have=k=>tex.has(k)||nativeKeys.has(k);
+  const usable=[...b.need.keys()].filter(have);
+  if(!usable.length)return null;
+  const keyMap=new Map();for(const k of b.need.keys())keyMap.set(k,have(k)?k:usable[0]);
+  const mi={};
+  for(const k of new Set(keyMap.values())){
+    if(tex.has(k))mi[k]={texture:'texture/'+keyOf.get(k),render_method:renderMethodFor(tex.get(k).rgba)};
+    else mi[k]={texture:nativeKeys.get(k),render_method:'opaque',native:true};
+  }
+  const first=Object.keys(mi)[0];
+  const doc={format_version:FV.model,'minecraft:block':{description:{identifier:ns+':'+b.id,menu_category:{category:'construction'}},components:{
+    'minecraft:geometry':geoId(ns,b.id),'minecraft:material_instances':Object.assign({'*':mi[first]},mi),
+    'minecraft:collision_box':b.boxes.collision||false,'minecraft:selection_box':b.boxes.selection||{origin:[-8,0,-8],size:[16,16,16]}}}};
+  for(const v of Object.values(doc['minecraft:block'].components['minecraft:material_instances']))delete v.native;
+  const geo=modelGeometryDoc(geoId(ns,b.id),b.cubes,keyMap);
+  return{doc,geo,keys:[...new Set(keyMap.values())].filter(k=>tex.has(k))};
 }
 /* geometry files the chosen shapes need (shared by every block of that shape) */
 function geometryFiles(blocks,ns,opt){
@@ -2126,17 +2167,23 @@ async function iconFor(entries){
 async function buildAddon(entries,o){
   if(!validNs(o.namespace))throw new Error('The namespace must be 1 to 16 lowercase letters, digits or underscores, and cannot be "minecraft".');
   const plan=planNew(entries,o);
-  if(!plan.blocks.length)throw new Error('Nothing to build: no block was selected.');
+  const mdl=o.models&&o.models.blocks&&o.models.blocks.length?o.models:null;
+  if(!plan.blocks.length&&!mdl)throw new Error('Nothing to build: no block was selected.');
   const name=String(o.packName||'Texture Shift').trim()||'Texture Shift',folder=packFolder(name),ns=o.namespace;
   const cornerStairs=!!o.cornerStairs;
   /* the pack asks for at least the newest block format any of its blocks is written in */
   const fvOf=b=>b.shape==='stairs'?(cornerStairs?FV.stairCorner:FV.stair):FV[b.shape==='faces'?'faces':b.shape]||FV.cube;
   let minEngine=[0,0,0];
-  for(const b of plan.blocks){const v=fvOf(b).split('.').map(Number);for(let i=0;i<3;i++){if(v[i]>minEngine[i]){minEngine=v;break;}if(v[i]<minEngine[i])break;}}
-  const{files:pngFiles,keyOf}=await uniquePngs(plan.textures);
+  const allB=mdl?plan.blocks.concat([{shape:'model'}]):plan.blocks;
+  for(const b of allB){const v=fvOf(b).split('.').map(Number);for(let i=0;i<3;i++){if(v[i]>minEngine[i]){minEngine=v;break;}if(v[i]<minEngine[i])break;}}
+  const mTex=mdl?mdl.textures:new Map(),mNative=mdl?mdl.native:new Map();
+  const allTex=new Map(plan.textures);for(const[k,v]of mTex)allTex.set(k,v);
+  const{files:pngFiles,keyOf}=await uniquePngs(allTex);
   /* every block points at the stored copy of its texture */
   for(const b of plan.blocks)for(const k of Object.keys(b.faces))b.faces[k]=keyOf.get(b.faces[k]);
   const used=new Set();for(const b of plan.blocks)for(const v of Object.values(b.faces))used.add(v);
+  const mParts=[];
+  if(mdl)for(const b of mdl.blocks){const p=modelBlockParts(b,ns,mTex,mNative,keyOf);if(p){mParts.push({b,p});for(const k of p.keys)used.add(keyOf.get(k));}}
   const man=manifests(name,folder,true,true,minEngine,'Built with Texture Shift');
   const bp=folder+'_behavior_pack/',rp=folder+'_resource_pack/',files=[];
   files.push({name:bp+'manifest.json',data:utf8(JSON.stringify(man.bp,null,2))});
@@ -2144,15 +2191,17 @@ async function buildAddon(entries,o){
   for(const b of sorted)files.push({name:bp+'blocks/'+b.id+'.json',data:jsonMin(blockDoc(b,ns,{cornerStairs}))});
   files.push({name:rp+'manifest.json',data:utf8(JSON.stringify(man.rp,null,2))});
   const bj={format_version:'1.19.30'};for(const b of sorted)bj[ns+':'+b.id]={sound:b.sound};
+  for(const m of mParts){files.push({name:bp+'blocks/'+m.b.id+'.json',data:jsonMin(m.p.doc)});bj[ns+':'+m.b.id]={sound:'stone'};}
   files.push({name:rp+'blocks.json',data:jsonMin(bj)});
   const td={};for(const k of[...used].sort())td['texture/'+k]={textures:'textures/blocks/'+k};
   files.push({name:rp+'textures/terrain_texture.json',data:jsonMin({resource_pack_name:name,texture_name:'atlas.terrain',texture_data:td})});
   for(const k of[...used].sort())files.push({name:rp+'textures/blocks/'+k+'.png',data:pngFiles.get(k)});
-  files.push({name:rp+'texts/en_US.lang',data:utf8(sorted.map(b=>`tile.${ns}:${b.id}.name=${b.title}`).join('\n')+'\n')});
+  files.push({name:rp+'texts/en_US.lang',data:utf8(sorted.map(b=>`tile.${ns}:${b.id}.name=${b.title}`).concat(mParts.map(m=>`tile.${ns}:${m.b.id}.name=${titleCase(m.b.id)}`)).join('\n')+'\n')});
   files.push({name:rp+'texts/languages.json',data:jsonMin(['en_US'])});
   for(const g of geometryFiles(plan.blocks,ns,{cornerStairs}))files.push({name:rp+g.name,data:g.data});
-  const icon=await iconFor(entries);files.push({name:bp+'pack_icon.png',data:icon},{name:rp+'pack_icon.png',data:icon});
-  return{files,plan,minEngine,textureFiles:pngFiles.size,folder,kind:'addon'};
+  for(const m of mParts)files.push({name:rp+'models/entity/'+ns+'_'+m.b.id+'.geo.json',data:jsonMin(m.p.geo)});
+  const icon=await iconFor(entries.length?entries:[[...allTex.values()][0]]);files.push({name:bp+'pack_icon.png',data:icon},{name:rp+'pack_icon.png',data:icon});
+  return{files,plan,minEngine,textureFiles:pngFiles.size,folder,kind:'addon',modelBlocks:mParts.length,modelSkipped:mdl?mdl.blocks.length-mParts.length:0};
 }
 /* Replace the game's own textures -> resource pack file list */
 async function buildReplacePack(entries,o){
@@ -2171,6 +2220,255 @@ return{LAYERS,buildAddon,buildReplacePack,planNew,planReplace,makeZipBytes,encod
 })();
 /*EXPORT-END*/
 if(typeof module!=='undefined')module.exports=ExportCore;
+/* Java block models -> Bedrock custom-geometry blocks, with a "wrap check" that repairs instead of rejecting.
+   Works on any archive: {entries:[{path, read(maxBytes)->Uint8Array}]}. Pure logic, no DOM. */
+const ModelCore=(function(){
+'use strict';
+const DIRS=['north','south','east','west','up','down'];
+const MAXB=8*1024*1024,td=new TextDecoder('utf-8');
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const r4=v=>Math.round(v*10000)/10000;
+const sid=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').replace(/_+/g,'_');
+/* what Java uses when a face has no "uv": the part of the tile that lines up with the cube's position */
+function defaultUv(d,f,t){
+  switch(d){
+    case'down':return[f[0],16-t[2],t[0],16-f[2]];
+    case'up':return[f[0],f[2],t[0],t[2]];
+    case'north':return[16-t[0],16-t[1],16-f[0],16-f[1]];
+    case'south':return[f[0],16-t[1],t[0],16-f[1]];
+    case'west':return[f[2],16-t[1],t[2],16-f[1]];
+    default:return[16-t[2],16-t[1],16-f[2],16-f[1]];
+  }
+}
+/* parents the game ships (they are not inside a mod). Faces use the texture variables the parent defines. */
+const FULL=(faces)=>[{from:[0,0,0],to:[16,16,16],faces}];
+const allFaces=v=>({north:{texture:v,cullface:'north'},south:{texture:v,cullface:'south'},east:{texture:v,cullface:'east'},west:{texture:v,cullface:'west'},up:{texture:v,cullface:'up'},down:{texture:v,cullface:'down'}});
+const VANILLA={
+  'block/cube_all':{textures:{},elements:FULL(allFaces('#all'))},
+  'block/leaves':{textures:{},elements:FULL(allFaces('#all'))},
+  'block/cube':{textures:{},elements:FULL({north:{texture:'#north'},south:{texture:'#south'},east:{texture:'#east'},west:{texture:'#west'},up:{texture:'#up'},down:{texture:'#down'}})},
+  'block/cube_column':{textures:{},elements:FULL({north:{texture:'#side'},south:{texture:'#side'},east:{texture:'#side'},west:{texture:'#side'},up:{texture:'#end'},down:{texture:'#end'}})},
+  'block/cube_bottom_top':{textures:{},elements:FULL({north:{texture:'#side'},south:{texture:'#side'},east:{texture:'#side'},west:{texture:'#side'},up:{texture:'#top'},down:{texture:'#bottom'}})},
+  'block/orientable':{textures:{},elements:FULL({north:{texture:'#front'},south:{texture:'#side'},east:{texture:'#side'},west:{texture:'#side'},up:{texture:'#top'},down:{texture:'#bottom'}})},
+  'block/block':{textures:{},elements:null},'block/thin_block':{textures:{},elements:[{from:[0,0,0],to:[16,1,16],faces:{up:{texture:'#particle'},down:{texture:'#particle'},north:{texture:'#particle'},south:{texture:'#particle'},east:{texture:'#particle'},west:{texture:'#particle'}}}]},
+  'block/carpet':{textures:{},elements:[{from:[0,0,0],to:[16,1,16],faces:{up:{texture:'#wool'},down:{texture:'#wool'},north:{texture:'#wool'},south:{texture:'#wool'},east:{texture:'#wool'},west:{texture:'#wool'}}}]},
+  'block/slab':{textures:{},elements:[{from:[0,0,0],to:[16,8,16],faces:{down:{texture:'#bottom'},up:{texture:'#top'},north:{texture:'#side'},south:{texture:'#side'},west:{texture:'#side'},east:{texture:'#side'}}}]},
+  'block/slab_top':{textures:{},elements:[{from:[0,8,0],to:[16,16,16],faces:{down:{texture:'#bottom'},up:{texture:'#top'},north:{texture:'#side'},south:{texture:'#side'},west:{texture:'#side'},east:{texture:'#side'}}}]},
+  'block/cross':{textures:{},elements:[{from:[0.8,0,8],to:[15.2,16,8],rotation:{origin:[8,8,8],axis:'y',angle:45,rescale:true},faces:{north:{uv:[0,0,16,16],texture:'#cross'},south:{uv:[0,0,16,16],texture:'#cross'}}},{from:[8,0,0.8],to:[8,16,15.2],rotation:{origin:[8,8,8],axis:'y',angle:45,rescale:true},faces:{west:{uv:[0,0,16,16],texture:'#cross'},east:{uv:[0,0,16,16],texture:'#cross'}}}]}
+};
+VANILLA['block/tinted_cross']=VANILLA['block/cross'];
+/* vanilla faces without a uv get the position-based default, so they are not reported as repairs */
+for(const m of Object.values(VANILLA))for(const e of m.elements||[])for(const[d,f]of Object.entries(e.faces))if(!f.uv)f.uv=defaultUv(d,e.from,e.to);
+const vanillaKey=p=>p.replace(/^minecraft:/,'');
+
+/* ---- reading an archive ---- */
+function indexArchive(entries){
+  const m=new Map();for(const e of entries){if(e.dir)continue;m.set(String(e.path).replace(/\\/g,'/').toLowerCase(),e);}return m;
+}
+async function readJson(idx,path,cache){
+  const k=path.toLowerCase();
+  if(cache.has(k))return cache.get(k);
+  const e=idx.get(k);let v=null;
+  if(e){try{v=JSON.parse(td.decode(await e.read(MAXB)).replace(/^﻿/,'').replace(/,(\s*[}\]])/g,'$1'));}catch(x){v=null;}}
+  cache.set(k,v);return v;
+}
+const split=(ref,def)=>{const i=ref.indexOf(':');return i<0?[def,ref]:[ref.slice(0,i),ref.slice(i+1)];};
+
+/* resolve a model through its parents: {elements, textures, repairs:[...]} */
+async function resolveModel(idx,ref,cache,depth,rep){
+  const[ns,p]=split(ref,'minecraft');
+  const vk=ns==='minecraft'?vanillaKey(p):null;
+  let d=await readJson(idx,`assets/${ns}/models/${p}.json`,cache);
+  if(!d&&vk&&VANILLA[vk])d=VANILLA[vk];
+  if(!d){rep.add('parent_unknown');return{elements:null,textures:{}};}
+  if(depth>16){rep.add('parent_loop');return{elements:null,textures:{}};}
+  let els=d.elements,tex=Object.assign({},d.textures||{});
+  if(d.parent&&!/^(minecraft:)?builtin\//.test(d.parent)){
+    const par=await resolveModel(idx,d.parent,cache,depth+1,rep);
+    if(els==null||els===undefined)els=par.elements;
+    tex=Object.assign({},par.textures,tex);
+  }
+  return{elements:els,textures:tex};
+}
+/* '#var' chains -> 'ns:path' or null */
+function texRef(v,textures){
+  let guard=0;while(typeof v==='string'&&v[0]==='#'&&guard++<12)v=textures[v.slice(1)];
+  return typeof v==='string'&&v[0]!=='#'?v:null;
+}
+const texKey=(ref,rot)=>{const[ns,p]=split(ref,'minecraft');return sid(ns+'_'+p)+(rot?'_r'+rot:'');};
+
+/* ---- a model -> cubes, with the wrap check ---- */
+function wrapModel(m,usedTex,opt){
+  const rep=new Set(),textures=m.textures,cubes=[],need=new Map();
+  const fallbackRef=()=>{
+    const pr=texRef('#particle',textures);if(pr&&usedTex.has(pr))return pr;
+    for(const v of Object.keys(textures)){const r=texRef('#'+v,textures);if(r&&usedTex.has(r))return r;}
+    return null;
+  };
+  for(const el of m.elements||[]){
+    if(!el||!Array.isArray(el.from)||!Array.isArray(el.to)){rep.add('element_skipped');continue;}
+    const f=el.from.map(Number),t=el.to.map(Number);
+    if(f.concat(t).some(x=>!isFinite(x))){rep.add('element_skipped');continue;}
+    const lo=[Math.min(f[0],t[0]),Math.min(f[1],t[1]),Math.min(f[2],t[2])],hi=[Math.max(f[0],t[0]),Math.max(f[1],t[1]),Math.max(f[2],t[2])];
+    const cube={origin:[lo[0]-8,lo[1],lo[2]-8],size:[hi[0]-lo[0],hi[1]-lo[1],hi[2]-lo[2]],uv:{}};
+    const ro=el.rotation;
+    if(ro&&ro.angle&&['x','y','z'].includes(ro.axis)){
+      const o=(ro.origin||[8,8,8]).map(Number),a=Number(ro.angle);
+      cube.pivot=[o[0]-8,o[1],o[2]-8];
+      /* Java element angles -> Bedrock cube rotation (x and y flip sign) */
+      cube.rotation=[ro.axis==='x'?-a:0,ro.axis==='y'?-a:0,ro.axis==='z'?a:0];
+      if(ro.rescale)rep.add('rescale_ignored');
+    }
+    const faces=el.faces||{};
+    for(const d of DIRS){
+      const fc=faces[d];if(!fc)continue;
+      let ref=texRef(fc.texture,textures);
+      if(!ref||!usedTex.has(ref)){const fb=fallbackRef();if(!fb){rep.add('face_dropped');continue;}ref=fb;rep.add('texture_fallback');}
+      let uv=Array.isArray(fc.uv)&&fc.uv.length===4&&fc.uv.every(x=>isFinite(+x))?fc.uv.map(Number):null;
+      if(!uv){uv=defaultUv(d,lo,hi);rep.add('uv_default');}
+      const cu=uv.map(x=>clamp(x,0,16));if(cu.some((x,i)=>x!==uv[i])){uv=cu;rep.add('uv_clamped');}
+      let rot=((Number(fc.rotation)||0)%360+360)%360;if(rot%90)rot=0;
+      let u1=uv[0],v1=uv[1],u2=uv[2],v2=uv[3],key;
+      if(rot===0)key=texKey(ref);
+      else if(rot===180){[u1,v1,u2,v2]=[u2,v2,u1,v1];key=texKey(ref);}
+      else if(rot===90){[u1,v1,u2,v2]=[16-v1,u1,16-v2,u2];key=texKey(ref,90);rep.add('texture_rotated_copy');}
+      else{[u1,v1,u2,v2]=[v1,16-u1,v2,16-u2];key=texKey(ref,270);rep.add('texture_rotated_copy');}
+      need.set(key,{ref,rot:rot===90||rot===270?rot:0});
+      cube.uv[d]={uv:[r4(u1),r4(v1)],uv_size:[r4(u2-u1),r4(v2-v1)],material_instance:key};
+    }
+    if(Object.keys(cube.uv).length)cubes.push(cube);else rep.add('element_without_faces');
+  }
+  return{cubes,need,rep};
+}
+/* keep geometry inside what a block can hold: 30 wide and deep around the block, 30 high */
+function fitCubes(cubes,rep){
+  const out=[];
+  for(let c of cubes){
+    if(c.rotation){out.push(c);continue;}
+    const o=c.origin.slice(),s=c.size.slice(),lim=[[-15,15],[0,30],[-15,15]];let cut=false,gone=false;
+    for(let i=0;i<3;i++){
+      const a=clamp(o[i],lim[i][0],lim[i][1]),b=clamp(o[i]+s[i],lim[i][0],lim[i][1]);
+      if(a!==o[i]||b!==o[i]+s[i])cut=true;
+      if(b-a<=0&&s[i]>0)gone=true;
+      s[i]=b-a;o[i]=a;
+    }
+    if(gone){rep.add('piece_outside_limits');continue;}
+    if(cut){rep.add('clamped_to_limits');c=Object.assign({},c,{origin:o,size:s});}
+    out.push(c);
+  }
+  return out;
+}
+const bounds=(cubes,lim)=>{
+  if(!cubes.length)return null;
+  let lo=[1e9,1e9,1e9],hi=[-1e9,-1e9,-1e9];
+  for(const c of cubes)for(let i=0;i<3;i++){lo[i]=Math.min(lo[i],c.origin[i]);hi[i]=Math.max(hi[i],c.origin[i]+c.size[i]);}
+  lo=lo.map((v,i)=>clamp(v,lim[i][0],lim[i][1]));hi=hi.map((v,i)=>clamp(v,lim[i][0],lim[i][1]));
+  return{origin:lo.map(r4),size:hi.map((v,i)=>r4(Math.max(v-lo[i],0.01)))};
+};
+function boxesFor(cubes){
+  const sel=bounds(cubes,[[-8,8],[0,16],[-8,8]]),col=bounds(cubes,[[-8,8],[0,24],[-8,8]]);
+  return{selection:sel,collision:col};
+}
+
+/* ---- scan one archive ---- */
+async function scanArchive(archive,opt){
+  opt=opt||{};
+  const idx=indexArchive(archive.entries),cache=new Map(),stats={blockstates:0,wrapped:0,repaired:0,skipped:0,repairs:{},skips:{}};
+  const states=[];
+  for(const[p]of idx){const m=/^assets\/([^/]+)\/blockstates\/(.+)\.json$/.exec(p);if(m)states.push({ns:m[1],name:m[2],path:p});}
+  states.sort((a,b)=>a.path<b.path?-1:1);
+  const blocks=[],texCache=new Map(),usedTex=new Set(),seenIds=new Map();
+  const hasTex=ref=>{
+    if(texCache.has(ref))return texCache.get(ref);
+    const[ns,p]=split(ref,'minecraft');
+    const ok=idx.has(`assets/${ns}/textures/${p}.png`.toLowerCase())||ns==='minecraft';
+    texCache.set(ref,ok);return ok;
+  };
+  const skip=(why)=>{stats.skipped++;stats.skips[why]=(stats.skips[why]||0)+1;};
+  let n=0;
+  for(const st of states){
+    if(opt.stop&&opt.stop())break;
+    if(opt.onProgress&&++n%200===0){opt.onProgress({done:n,total:states.length});await new Promise(r=>setTimeout(r,0));}
+    stats.blockstates++;
+    const bs=await readJson(idx,st.path,cache);
+    if(!bs){skip('unreadable blockstate');continue;}
+    /* the model(s) of the default state */
+    const refs=[];
+    const pick=v=>Array.isArray(v)?v[0]:v;
+    if(bs.variants){const k=Object.keys(bs.variants)[0];const v=pick(bs.variants[k]);if(v&&v.model)refs.push(v.model);}
+    else if(Array.isArray(bs.multipart)){
+      const plain=bs.multipart.filter(p=>!p.when);
+      for(const p of(plain.length?plain:bs.multipart.slice(0,1))){const v=pick(p.apply);if(v&&v.model)refs.push(v.model);}
+    }
+    if(!refs.length){skip('no model in blockstate');continue;}
+    const rep=new Set();let elements=[],textures={};const per=[];
+    for(const r of refs){
+      const mr=await resolveModel(idx,r.includes(':')?r:st.ns+':'+r,cache,0,rep);
+      per.push(mr);
+    }
+    /* textures that exist: collect first, so the wrap check knows what it can use */
+    for(const mr of per)for(const v of Object.keys(mr.textures)){const r=texRef('#'+v,mr.textures);if(r&&hasTex(r))usedTex.add(r);}
+    let cubes=[],need=new Map();
+    for(const mr of per){
+      if(!mr.elements||!mr.elements.length){continue;}
+      const w=wrapModel(mr,usedTex,opt);
+      cubes=cubes.concat(w.cubes);for(const[k,v]of w.need)need.set(k,v);for(const r of w.rep)rep.add(r);
+    }
+    if(!cubes.length&&per.some(mr=>!mr.elements)){
+      /* a model with no elements and no known parent: a plain cube from whatever textures it names */
+      for(const mr of per){
+        const f=Object.keys(mr.textures).map(v=>texRef('#'+v,mr.textures)).find(r=>r&&hasTex(r));
+        if(f){const fc={};for(const d of DIRS)fc[d]={texture:f};const w=wrapModel({textures:{a:f},elements:[{from:[0,0,0],to:[16,16,16],faces:Object.fromEntries(DIRS.map(d=>[d,{texture:'#a'}]))}]},usedTex,opt);cubes=cubes.concat(w.cubes);for(const[k,v]of w.need)need.set(k,v);rep.add('cube_from_textures');break;}
+      }
+    }
+    if(!cubes.length){skip('no usable geometry');continue;}
+    cubes=fitCubes(cubes,rep);
+    if(!cubes.length){skip('outside limits');continue;}
+    let id=sid(st.name);if(!id){skip('unusable name');continue;}
+    if(seenIds.has(id))id=sid(st.ns+'_'+st.name);
+    if(seenIds.has(id)){let k=2;while(seenIds.has(id+'_'+k))k++;id=id+'_'+k;}
+    seenIds.set(id,1);
+    const repairs=[...rep];
+    if(repairs.length){stats.repaired++;for(const r of repairs)stats.repairs[r]=(stats.repairs[r]||0)+1;}else stats.wrapped++;
+    blocks.push({id,ns:st.ns,name:st.name,cubes,need,boxes:boxesFor(cubes),repairs});
+  }
+  return{blocks,stats,archive:{idx},hasTex};
+}
+
+/* ---- pixels for the textures the blocks use. decode(bytes)->{w,h,data} ---- */
+function rotatePixels(rgba,w,h,deg){
+  const out=new Uint8Array(rgba.length);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    let nx,ny;
+    if(deg===90){nx=h-1-y;ny=x;}else{nx=y;ny=w-1-x;}
+    const s=(y*w+x)*4,d=(ny*h+nx)*4;out[d]=rgba[s];out[d+1]=rgba[s+1];out[d+2]=rgba[s+2];out[d+3]=rgba[s+3];
+  }
+  return out;
+}
+async function loadTextures(scan,blocks,decode,nativeFile){
+  const out=new Map(),native=new Map(),miss=new Set(),cache=new Map();
+  for(const b of blocks)for(const[key,v]of b.need){
+    if(out.has(key)||native.has(key)||miss.has(key))continue;
+    const[ns,p]=split(v.ref,'minecraft');
+    const e=scan.archive.idx.get(`assets/${ns}/textures/${p}.png`.toLowerCase());
+    if(!e){
+      const nf=ns==='minecraft'&&nativeFile?nativeFile(p.split('/').pop()):null;
+      if(nf&&!v.rot)native.set(key,nf);else miss.add(key);
+      continue;
+    }
+    try{
+      let img=cache.get(e.path);
+      if(!img){const d=await decode(await e.read(MAXB));
+        /* animation strips: first frame */
+        const h=d.w&&d.h>d.w&&d.h%d.w===0?d.w:d.h;img={w:d.w,h,data:d.h===h?d.data:d.data.subarray(0,d.w*h*4)};cache.set(e.path,img);}
+      if(img.w!==img.h&&v.rot){miss.add(key);continue;}
+      out.set(key,{rgba:v.rot?rotatePixels(img.data,img.w,img.h,v.rot):img.data,w:img.w,h:img.h});
+    }catch(x){miss.add(key);}
+  }
+  return{textures:out,native,missing:miss};
+}
+return{scanArchive,loadTextures,resolveModel,defaultUv,rotatePixels,VANILLA,fitCubes,boxesFor,texKey,sid};
+})();
 </script>
 
 <script>
@@ -2459,6 +2757,7 @@ async function runImport(files,label){
     const can=lib.rejected.filter(r=>r.canForce&&(r.code==='shape'||r.code==='transparent'));
     if(can.length)await forceRejected(can,null,true);
   }
+  if(mode==='import'&&$('#impModels').checked&&!res.stopped)await scanModels(files);
   return res;
 }
 function summarize(){
@@ -3056,6 +3355,61 @@ const EX_BUDGET=96*1024*1024;let exRetained=0,exMode='blocks',exBusy=false,lastR
 const EXKEY='texture_shift_export_v1',VAR_KEYS=['cube','slab','stairs','fence','wall','eighth','quarter','three_eighths','three_quarters'];
 const MC_MAX=2000;
 const mc={items:[],byId:new Map(),shown:150,urls:[]};
+const mdl={sets:[],chosen:[],ids:new Set()};
+/* ----- Java mod models ----- */
+function isArchiveName(n){return /\.(jar|zip|mcpack|mcaddon)$/i.test(n);}
+async function scanModels(files){
+  const cand=files.filter(f=>isArchiveName(f.name)&&f.size>0);
+  for(const f of cand){
+    try{
+      const z=await ImportCore.openZip(ImportCore.blobSource(f));
+      const entries=z.entries.map(e=>({path:e.name,dir:e.dir,read:m=>z.read(e,m)}));
+      if(!entries.some(e=>/^assets\/[^/]+\/blockstates\/.+\.json$/i.test(e.path)))continue;
+      libMsg('Reading shapes from '+f.name+'…');
+      const scan=await ModelCore.scanArchive({entries},{onProgress:p=>libMsg('Reading shapes from '+f.name+'… '+fmt(p.done)+' / '+fmt(p.total))});
+      if(!scan.blocks.length)continue;
+      mdl.sets=mdl.sets.filter(s=>s.name!==f.name);
+      mdl.sets.push({name:f.name,scan,q:''});
+      libMsg('Found '+plural(scan.blocks.length,'custom shape')+' in '+f.name+'.');
+    }catch(e){/* not a zip we can read: the texture import already reported it */}
+  }
+  renderModels();
+}
+function mdlMatches(set){const q=set.q.trim().toLowerCase();return q?set.scan.blocks.filter(b=>b.id.includes(q)||b.name.toLowerCase().includes(q)):set.scan.blocks;}
+function renderModels(){
+  const card=$('#mdlCard'),box=$('#mdlSets');box.textContent='';
+  card.style.display=mdl.sets.length?'':'none';
+  for(const set of mdl.sets){
+    const st=set.scan.stats,w=el('div','mset');
+    w.append(el('b',null,set.name));
+    w.append(el('div','st',fmt(set.scan.blocks.length)+' shapes · '+fmt(st.wrapped)+' wrapped cleanly · '+fmt(st.repaired)+' repaired'+(st.skipped?' · '+fmt(st.skipped)+' skipped':'')));
+    const q=document.createElement('input');q.type='search';q.placeholder='Filter by name';q.value=set.q;q.setAttribute('aria-label','Filter shapes');
+    const btn=el('button',null,'');btn.type='button';
+    const upd=()=>{const n=mdlMatches(set).length;btn.textContent=(set.q.trim()?'Add '+fmt(n)+' matching':'Add all '+fmt(n));btn.disabled=!n;};
+    q.addEventListener('input',()=>{set.q=q.value;upd();});
+    btn.addEventListener('click',()=>addModels(set));
+    upd();
+    const r2=el('div','row2');r2.append(q,btn);w.append(r2);
+    const rp=Object.entries(st.repairs).sort((a,b)=>b[1]-a[1]);
+    if(rp.length||st.skipped){
+      const d=document.createElement('details');d.append(el('summary',null,'What was repaired'));
+      const lines=rp.map(([k,v])=>fmt(v)+' × '+(REPAIR_TEXT[k]||k));
+      for(const[k,v]of Object.entries(st.skips))lines.push(fmt(v)+' skipped: '+k);
+      d.append(el('div',null,lines.join(' · ')));w.append(d);
+    }
+    box.append(w);
+  }
+}
+const REPAIR_TEXT={texture_rotated_copy:'rotated texture copy (turned faces)',uv_default:'missing UV filled in',texture_fallback:'missing texture replaced by another from the same block',uv_clamped:'UV pulled inside the tile',cube_from_textures:'unknown parent model → plain cube',piece_outside_limits:'piece fully outside the 30-unit limit dropped',clamped_to_limits:'piece trimmed to the 30-unit limit',rescale_ignored:'rescale ignored',parent_unknown:'unknown parent model',face_dropped:'face without any texture dropped',element_skipped:'broken element skipped',element_without_faces:'element without faces skipped'};
+function addModels(set){
+  let added=0;
+  for(const b of mdlMatches(set)){
+    const key=set.name+'|'+b.id;if(mdl.ids.has(key))continue;
+    mdl.ids.add(key);mdl.chosen.push({set,b});added++;
+  }
+  mcRender();libMsg('Added '+plural(added,'shape')+' to the Minecraft pack.');
+}
+$('#mdlChosenX').addEventListener('click',()=>{mdl.chosen=[];mdl.ids.clear();mcRender();});
 const KIND_LABEL={block:'Block',plant:'Plant',tall:'Tall plant'};
 const PLANT_RE=/(sapling|flower|tulip|orchid|allium|bluet|cornflower|dandelion|poppy|lily|rose|peony|lilac|fern|grass|bush|vine|mushroom|roots|sprouts|fungus|crop|wheat|carrots|potatoes|beetroots|seagrass|kelp|bamboo|cane|reeds|sunflower|pitcher|torchflower|petals|weeds|shrub|plant)/;
 const NOT_PLANT_RE=/(block|planks|log|wood|brick|stone|dirt|carpet|path|side$|snow|nylium|wart|crate|farmland)/;
@@ -3087,7 +3441,9 @@ function mcHead(){
   if(c.plant)bits.push(plural(c.plant,'plant'));
   if(c.tall)bits.push(plural(c.tall,'tall plant texture'));
   $('#mcCount').textContent=n?bits.join(' · '):'';
-  $('#mcEmpty').style.display=n?'none':'';$('#mcTools').style.display=n?'':'none';
+  const nm=mdl.chosen.length;
+  $('#mdlChosen').style.display=nm?'':'none';$('#mdlChosenT').textContent=plural(nm,'model block');
+  $('#mcEmpty').style.display=n||nm?'none':'';$('#mcTools').style.display=n?'':'none';
 }
 function mcRender(){
   mcHead();
@@ -3177,20 +3533,21 @@ function exLayout(){
 }
 function exSummary(){
   const box=$('#exSummary');box.className='';
-  const n=mc.items.length;
-  if(!n){box.textContent='Add textures to the pack above first.';$('#exBuild').disabled=true;return;}
+  const n=mc.items.length,nm=mdl.chosen.length;
+  if(!n&&!(exMode==='blocks'&&nm)){box.textContent='Add textures to the pack above first.';$('#exBuild').disabled=true;return;}
   if(exMode==='blocks'){
     const ns=$('#exNs').value.trim(),v=exVariants();
     if(!EC.validNs(ns)){box.textContent='The namespace needs 1 to 16 lowercase letters, digits or underscores (and cannot be "minecraft").';box.className='bad';$('#exBuild').disabled=true;return;}
     const c=mcCounts();
-    if(!Object.values(v).some(Boolean)&&!c.plant&&!c.tall){box.textContent='Tick at least one block type.';box.className='bad';$('#exBuild').disabled=true;return;}
+    if(!Object.values(v).some(Boolean)&&!c.plant&&!c.tall&&!nm){box.textContent='Tick at least one block type.';box.className='bad';$('#exBuild').disabled=true;return;}
     const plan=EC.planNew(exStubEntries(),{namespace:ns,variants:v});
     const by={};for(const b of plan.blocks)by[b.shape]=(by[b.shape]||0)+1;
     const bits=[];const solid=plan.blocks.length-(by.plant||0)-(by.tall||0);
+    if(nm)bits.push(plural(nm,'mod shape'));
     if(solid)bits.push(plural(solid,'block'));if(by.plant)bits.push(plural(by.plant,'plant'));if(by.tall)bits.push(plural(by.tall,'tall plant'));
-    box.textContent=(plan.blocks.length?bits.join(' + ')+' will be made from '+plural(n,'texture')+'.':'Nothing would be made with these settings.')
+    box.textContent=(plan.blocks.length||nm?bits.join(' + ')+' will be made'+(n?' from '+plural(n,'texture'):'')+'.':'Nothing would be made with these settings.')
       +(plan.skipped.length?' '+plan.skipped.length+' skipped (names).':'');
-    $('#exBuild').disabled=exBusy||!plan.blocks.length;
+    $('#exBuild').disabled=exBusy||!(plan.blocks.length||nm);
   }else{
     const pr=EC.planReplace(exStubEntries());
     box.textContent=pr.matches.length+' of '+n+' match a block texture the game already has'
@@ -3214,7 +3571,7 @@ async function mcPixels(m){
   return{rgba:r.data,w:r.w,h:r.h};
 }
 async function buildExport(){
-  if(exBusy||!mc.items.length)return;
+  if(exBusy||!(mc.items.length||(exMode==='blocks'&&mdl.chosen.length)))return;
   exBusy=true;$('#exBuild').disabled=true;$('#exOut').textContent='';
   const out=$('#exOut'),note=t=>{$('#exSummary').textContent=t;$('#exSummary').className='';};
   try{
@@ -3226,10 +3583,23 @@ async function buildExport(){
       entries.push({stem:m.stem,w:px.w,h:px.h,rgba:px.rgba,cat:ImportCore.categorize(m.stem),kind:m.kind});
       if(i%25===24)await new Promise(r=>setTimeout(r,0));
     }
+    let models=null;
+    if(exMode==='blocks'&&mdl.chosen.length){
+      const bySet=new Map();
+      for(const x of mdl.chosen){if(!bySet.has(x.set))bySet.set(x.set,[]);bySet.get(x.set).push(x.b);}
+      const blocks=[],textures=new Map(),native=new Map(),used=new Set();
+      for(const[set,list]of bySet){
+        note('Reading model textures from '+set.name+'…');
+        const lt=await ModelCore.loadTextures(set.scan,list,async bytes=>{const d=await decodeBrowser(bytes,'png');return d;},EC.nativeFile);
+        for(const[k,v]of lt.textures)textures.set(k,v);for(const[k,v]of lt.native)native.set(k,v);
+        for(const b of list){let id=b.id;if(used.has(id)){let k=2;while(used.has(id+'_'+k))k++;id=id+'_'+k;}used.add(id);blocks.push(id===b.id?b:Object.assign({},b,{id}));}
+      }
+      models={blocks,textures,native};
+    }
     note('Building…');
     const name=$('#exName').value.trim()||'Texture Shift';
     const r=exMode==='blocks'
-      ?await EC.buildAddon(entries,{namespace:$('#exNs').value.trim(),packName:name,variants:exVariants(),cornerStairs:$('#exCorner').checked&&$('#exV_stairs').checked})
+      ?await EC.buildAddon(entries,{namespace:$('#exNs').value.trim(),packName:name,variants:exVariants(),cornerStairs:$('#exCorner').checked&&$('#exV_stairs').checked,models})
       :await EC.buildReplacePack(entries,{packName:name});
     const bytes=await EC.makeZipBytes(r.files);
     const ext=r.kind==='addon'?'.mcaddon':'.mcpack',fname=safeName(r.folder,'Texture Shift')+ext;
@@ -3240,7 +3610,7 @@ async function buildExport(){
     a.textContent='Download '+fname+' ('+kb+')';out.append(a);
     const bits=[];
     if(r.kind==='addon'){
-      bits.push(r.plan.blocks.length+' blocks, '+r.textureFiles+' texture file'+(r.textureFiles===1?'':'s')+(r.textureFiles<r.plan.textures.size?' (identical textures are stored once)':'')+'.');
+      bits.push((r.plan.blocks.length+(r.modelBlocks||0))+' blocks'+(r.modelBlocks?' ('+fmt(r.modelBlocks)+' from mod shapes'+(r.modelSkipped?', '+fmt(r.modelSkipped)+' had no texture and were left out':'')+')':'')+', '+r.textureFiles+' texture file'+(r.textureFiles===1?'':'s')+(r.textureFiles<r.plan.textures.size?' (identical textures are stored once)':'')+'.');
       bits.push('Open the file with Minecraft, then switch on both of its packs for your world.');
       bits.push('Needs Minecraft '+r.minEngine.join('.')+' or newer.');
     }else{
