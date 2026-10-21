@@ -1,0 +1,2236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Texture Shift</title>
+<style>
+:root{--bg:#0f1115;--card:#181b22;--line:#2a2f3a;--text:#e8eaf0;--dim:#9aa3b2;--accent:#5b8cff;--ok:#3ecf8e;--bad:#ff6b6b}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,system-ui,Segoe UI,Roboto,sans-serif}
+main{max-width:720px;margin:0 auto;padding:14px 14px calc(40px + env(safe-area-inset-bottom))}
+h1{font-size:22px;margin:6px 0 2px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:22px 0 8px}
+.sub{color:var(--dim);margin:0 0 6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+.picks{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pick{position:relative;display:flex;flex-direction:column;justify-content:center;min-height:84px;padding:12px;border:1.5px dashed var(--line);border-radius:14px;background:var(--card);text-align:center;cursor:pointer}
+.pick b{display:block;font-size:14px}
+.pick span{color:var(--dim);font-size:12px}
+.pick .n{color:var(--accent);font-weight:700;font-size:13px;margin-top:4px}
+.pick input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+.line{display:flex;gap:10px;align-items:center;margin:10px 0 0;flex-wrap:wrap}
+.line label{color:var(--dim);font-size:13px}
+select{background:#0f1218;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:8px;font-size:14px;min-width:0;max-width:100%}
+#msg{color:var(--dim);font-size:13px;margin-top:8px;min-height:18px}
+#msg.err{color:var(--bad)}
+#pairs{max-height:340px;overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.row{display:grid;grid-template-columns:40px minmax(0,1fr);gap:6px 8px;align-items:center;padding:8px;border-bottom:1px solid var(--line);cursor:pointer}
+.row .tg{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px}
+.row .tc{display:grid;grid-template-columns:14px 40px minmax(0,1fr);gap:6px;align-items:center}
+.row .tc b{font-size:11px;color:var(--dim)}
+.slot{padding:10px 0;border-top:1px solid var(--line)}
+.slot .top{display:flex;justify-content:space-between;align-items:center;font-size:14px;gap:8px}
+.slot .top span{white-space:nowrap}
+.slot output{color:var(--accent);font-variant-numeric:tabular-nums}
+.slot input[type=range]{width:100%;margin:6px 0 0;height:32px}
+.row:last-child{border-bottom:0}
+.row.sel{background:#1f2738;box-shadow:inset 3px 0 0 var(--accent)}
+.row img,.row .ph{width:40px;height:40px;image-rendering:pixelated;background:#0f1218;border-radius:6px;object-fit:contain}
+.row .nm{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .ar{color:var(--dim);text-align:center}
+.row select{width:100%;font-size:12px;padding:6px}
+.row .ctl{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--dim)}
+.row .ctl label{display:flex;align-items:center;gap:6px}
+.row .ctl button{background:none;border:0;color:var(--bad);font-size:12px;padding:4px 8px}
+.empty{padding:18px;text-align:center;color:var(--dim);font-size:13px}
+.preview{position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 0 6px}
+.pv{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.pv figure{margin:0;text-align:center}
+.pv canvas{width:100%;aspect-ratio:1/1;object-fit:contain;image-rendering:pixelated;background:repeating-conic-gradient(#20242d 0 25%,#171a21 0 50%) 0 0/12px 12px;border-radius:8px;border:1px solid var(--line)}
+.pv figcaption{font-size:11px;color:var(--dim);margin-top:2px}
+.grp{margin-top:14px}
+.grp h3{font-size:14px;margin:0 0 6px}
+.sl{padding:8px 0;border-top:1px solid var(--line)}
+.sl:first-of-type{border-top:0}
+.sl .top{display:flex;justify-content:space-between;font-size:14px}
+.sl output{color:var(--accent);font-variant-numeric:tabular-nums}
+.sl input[type=range]{width:100%;margin:6px 0 2px;height:32px}
+.sl small{display:block;color:var(--dim);font-size:12px}
+button.main{width:100%;margin-top:16px;padding:16px;border:0;border-radius:14px;background:var(--accent);color:#fff;font-size:17px;font-weight:700}
+button.main:disabled{opacity:.4}
+button.ghost{background:none;border:1px solid var(--line);color:var(--dim);border-radius:9px;padding:8px 12px;font-size:13px}
+.bar{height:8px;background:var(--line);border-radius:6px;overflow:hidden;margin-top:12px;display:none}
+.bar i{display:block;height:100%;width:0;background:var(--ok)}
+#done{margin-top:12px;display:none}
+#done a{display:block;text-align:center;padding:14px;border-radius:14px;background:var(--ok);color:#06210f;font-weight:700;text-decoration:none}
+#done p{color:var(--dim);font-size:13px;margin:8px 0 0}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:3px 10px 3px 4px;font-size:12px;background:#0f1218;white-space:nowrap}
+.chip i{width:16px;height:16px;border-radius:50%;border:1px solid #0006;display:inline-block}
+.chip.feat{border-color:var(--ok);color:var(--ok)}
+#found h3{font-size:14px;margin:0 0 8px}
+.frow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}
+.fl{font-size:12px;color:var(--dim);min-width:62px}
+#found small{display:block;color:var(--dim);font-size:12px;margin-top:8px}
+.jtabs{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:2px 0 8px}
+.jtab{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:96px;max-width:200px;padding:8px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);text-align:left}
+.jtab b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.jtab span{font-size:12px;color:var(--dim)}
+.jtab.on{border-color:var(--accent);background:#1f2738}
+input[type=text]{flex:1;min-width:0;background:#0f1218;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:9px;font-size:15px}
+.line input[type=text]{min-width:120px}
+button:disabled.ghost{opacity:.4}
+body.running .lockable{pointer-events:none;opacity:.55}
+#done a.big{margin-bottom:10px}
+.jl{display:grid;gap:8px}
+.jr{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.jr a{flex:1;background:none!important;border:1px solid var(--line);color:var(--text)!important;padding:10px!important;font-weight:600;font-size:14px;text-align:left!important}
+.jr span{font-size:12px;color:var(--dim);white-space:nowrap}
+
+.libgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px;max-height:330px;overflow:auto;-webkit-overflow-scrolling:touch;padding:8px;border:1px solid var(--line);border-radius:12px;background:#0f1218;margin-top:10px}
+.tile{position:relative;aspect-ratio:1/1;border-radius:8px;border:2px solid transparent;background:repeating-conic-gradient(#20242d 0 25%,#171a21 0 50%) 0 0/10px 10px;overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.tile canvas{width:100%;height:100%;image-rendering:pixelated;display:block}
+.tile.on{border-color:var(--accent)}
+.tile.on::after{content:"\2713";position:absolute;top:0;right:3px;font-size:13px;font-weight:700;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000}
+.tile .tag{position:absolute;left:2px;bottom:2px;font-size:9px;line-height:12px;background:#000b;color:#fff;border-radius:4px;padding:0 3px}
+.libgrid .more{grid-column:1/-1;padding:10px}
+.libgrid .emptyg{grid-column:1/-1;padding:14px;text-align:center;color:var(--dim);font-size:13px}
+#libCaption{min-height:18px;font-size:12px;color:var(--dim);margin-top:6px;word-break:break-word}
+.libtools{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:12px}
+.libtools input[type=search]{grid-column:1/-1;background:#0f1218;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:9px;font-size:15px;min-width:0;width:100%}
+.libtools select{width:100%}
+.selline{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.selline b{font-size:14px;margin-right:auto}
+.addrow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:8px}
+.addrow button{padding:10px 4px;border-radius:10px;border:1.5px solid var(--accent);background:none;color:var(--text);font-size:13px;font-weight:600}
+.addrow button:disabled{opacity:.35;border-color:var(--line)}
+.lead{color:var(--dim);font-size:13px;margin:8px 0 0}
+#libMsg{font-size:13px;margin-top:10px;color:var(--dim);min-height:18px}
+#libMsg.err{color:var(--bad)}
+.bar.busy{display:block}
+.bar.busy i{width:35%;animation:slide 1.1s ease-in-out infinite alternate}
+@keyframes slide{from{margin-left:0}to{margin-left:65%}}
+details.rules{margin-top:10px;font-size:13px;color:var(--dim)}
+details.rules summary,#rejBox>details>summary{cursor:pointer;color:var(--text);font-size:14px}
+details.rules ul{margin:8px 0 0;padding-left:18px}
+details.rules li{margin:4px 0}
+#rejBox{margin-top:10px}
+#rejBox>details{border:1px solid var(--line);border-radius:12px;padding:10px;background:#12151b}
+.rg{margin-top:8px;border-top:1px solid var(--line);padding-top:8px}
+.rg summary{font-size:13px;cursor:pointer;display:flex;gap:8px;align-items:baseline}
+.rg summary b{font-weight:600}
+.rg summary span{margin-left:auto;color:var(--dim);font-variant-numeric:tabular-nums}
+.rg .hint{color:var(--dim);font-size:12px;margin:6px 0}
+.rg ul{margin:6px 0;padding-left:16px;max-height:170px;overflow:auto;font-size:12px;color:var(--dim)}
+.rg li{margin:3px 0;word-break:break-word}
+.rg li b{color:var(--text);font-weight:600}
+.rg button{margin-top:4px}
+.clearrow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0 0;font-size:12px;color:var(--dim)}
+.clearrow button{padding:5px 10px;font-size:12px}
+</style>
+</head>
+<body>
+<main>
+<h1>Texture Shift</h1>
+<p class="sub">Merge a new look into batches of textures part by part: keep the original’s layout and grain as much as you like, take on the new colors, and bring in new features like moss only where the new texture has them. Import whole texture packs into a library, then send textures from it to your jobs. Up to 300 textures per set in a job; the library holds as many as you import.</p>
+
+<h2>Library</h2>
+<div class="card" id="libCard">
+  <div class="picks">
+    <label class="pick"><b>Import packs &amp; images</b><span>.zip · .mcpack · .mcaddon · Java pack · .jar · png · jpg · tga</span><input id="fLib" type="file" multiple></label>
+    <label class="pick"><b>Import a folder</b><span>an unzipped pack (desktop and iPad)</span><input id="fLibDir" type="file" webkitdirectory multiple></label>
+  </div>
+  <div class="bar" id="libBar"><i></i></div>
+  <div class="line"><button class="ghost" id="libStop" type="button" style="display:none">Stop import</button></div>
+  <div id="libMsg"></div>
+  <details class="rules"><summary>What gets imported</summary>
+    <ul>
+      <li>Packs: <b>.zip, .mcpack, .mcaddon, Java resource packs and .jar</b> files, including packs inside packs.</li>
+      <li>Inside a pack only the <b>block folders</b> are read (<code>assets/…/textures/block/</code> for Java, <code>textures/blocks/</code> for Bedrock). Mobs, items, particles, menus, weather and sky are skipped.</li>
+      <li>Images must be <b>square, 8–1024 px, a power of two</b> (16, 32, 64…). A tall strip of square frames is an animation and its first frame is used.</li>
+      <li>Stairs, fences, doors, rails, torches, plants and other <b>non-cube shapes</b> are skipped, and so are cut-outs that are mostly transparent. Glass, leaves and ice still import.</li>
+      <li>A plain image or a zip of plain images, with no pack folders, is accepted when it is square and the right size.</li>
+      <li>Everything skipped is listed with its reason, and most of it can be <b>imported anyway</b>.</li>
+    </ul>
+  </details>
+  <div id="rejBox" style="display:none"></div>
+  <div id="libBrowse" style="display:none">
+    <div class="libtools">
+      <input id="libQ" type="search" placeholder="Search names" autocomplete="off" aria-label="Search the library">
+      <select id="libPack" style="grid-column:1/3" aria-label="Pack"></select>
+      <select id="libSize" aria-label="Size"></select>
+    </div>
+    <div class="libgrid" id="libGrid"></div>
+    <div id="libCaption"></div>
+    <div class="selline lockable">
+      <b id="selCount">0 selected</b>
+      <button class="ghost" id="selAll" type="button">Select all</button>
+      <button class="ghost" id="selNone" type="button">Clear</button>
+    </div>
+    <div class="lead lockable">Add the selection to <b id="jobLabel">Job 1</b> as:</div>
+    <div class="addrow lockable">
+      <button id="addSrc" type="button" disabled>To change</button>
+      <button id="addT0" type="button" disabled>Toward A</button>
+      <button id="addT1" type="button" disabled>Toward B</button>
+      <button id="addT2" type="button" disabled>Toward C</button>
+    </div>
+    <div class="line lockable">
+      <button class="ghost" id="libRemove" type="button" disabled>Remove selected</button>
+      <button class="ghost" id="libClear" type="button">Empty the library</button>
+    </div>
+  </div>
+</div>
+
+<h2>Jobs</h2>
+<div id="jobtabs" class="jtabs lockable"></div>
+<div class="line lockable" id="jobActions">
+  <input id="jobName" type="text" placeholder="Job name" maxlength="60" aria-label="Job name">
+  <button class="ghost" id="jobNew" type="button">+ New job</button>
+  <button class="ghost" id="jobDup" type="button">Duplicate</button>
+  <button class="ghost" id="jobDel" type="button">Delete</button>
+</div>
+<p class="sub" style="margin-top:6px">Every job has its own textures, targets and settings. One Start runs them all, and each job’s results come back in its own folder.</p>
+
+<h2>1 · Pick textures for this job</h2>
+<p class="lead" style="margin:0 0 8px">Send textures here from the library above, or tap a box to choose files or a pack directly (they are filtered the same way and also land in the library).</p>
+<div class="picks lockable" id="jobPicks">
+  <label class="pick" style="grid-column:1/-1"><b>Textures to change</b><span>the originals (donor)</span><div class="n" id="nSrc">0 selected</div><input id="fSrc" type="file" multiple></label>
+  <label class="pick"><b>Toward A</b><span>required</span><div class="n" id="nT0">0 selected</div><input id="fT0" type="file" multiple></label>
+  <label class="pick"><b>Toward B</b><span>optional</span><div class="n" id="nT1">0 selected</div><input id="fT1" type="file" multiple></label>
+  <label class="pick" style="grid-column:1/-1"><b>Toward C</b><span>optional</span><div class="n" id="nT2">0 selected</div><input id="fT2" type="file" multiple></label>
+</div>
+<div class="clearrow lockable"><span>Empty:</span><button class="ghost" id="clrSrc" type="button">To change</button><button class="ghost" id="clrT0" type="button">A</button><button class="ghost" id="clrT1" type="button">B</button><button class="ghost" id="clrT2" type="button">C</button></div>
+<div class="line">
+  <label for="pairMode">Pair them by</label>
+  <select id="pairMode"><option value="order">File name order</option><option value="name">Identical file name</option></select>
+</div>
+<div id="msg"></div>
+
+<h2>2 · Check the pairs</h2>
+<div id="pairs" class="lockable"><div class="empty">Pick both sets of textures above.</div></div>
+
+<h2>3 · Settings for this job</h2>
+<div class="preview">
+  <div class="pv">
+    <figure><canvas id="cS"></canvas><figcaption>Original</figcaption></figure>
+    <figure><canvas id="cT"></canvas><figcaption id="capT">New</figcaption></figure>
+    <figure><canvas id="cR"></canvas><figcaption>Result</figcaption></figure>
+    <figure><canvas id="cX"></canvas><figcaption>Result tiled 3×3</figcaption></figure>
+  </div>
+</div>
+<div class="card" id="found" style="display:none;margin-bottom:10px"></div>
+<div class="card lockable" id="blendCard" style="display:none;margin-bottom:10px">
+  <div class="grp" style="margin-top:0"><h3>Blend the targets</h3>
+    <div class="line" style="margin-top:0">
+      <label for="combine">How they combine</label>
+      <select id="combine">
+        <option value="mix">Mix (weighted average)</option>
+        <option value="stack">Stack features</option>
+        <option value="strongest">Strongest wins</option>
+      </select>
+    </div>
+    <small id="combineHint" style="display:block;color:var(--dim);font-size:12px;margin-top:6px"></small>
+    <div id="slots"></div>
+  </div>
+</div>
+<div class="card lockable" id="presetCard" style="margin-bottom:10px">
+  <div class="line" style="margin-top:0"><label for="presetSel">Preset</label><select id="presetSel"></select><button class="ghost" id="presetDel" type="button" disabled>Delete</button></div>
+  <div class="line"><input id="presetName" type="text" placeholder="Name to save these settings" maxlength="30" aria-label="Preset name"><button class="ghost" id="presetSave" type="button">Save as preset</button></div>
+  <small id="presetMsg" style="display:block;color:var(--dim);font-size:12px;margin-top:6px"></small>
+</div>
+<div class="card lockable" id="settings"></div>
+<div class="line">
+  <label for="alphaMode">Transparency</label>
+  <select id="alphaMode"><option value="keep">Keep the original's</option><option value="new">Use the new texture's</option></select>
+  <button class="ghost" id="reset" type="button">Reset sliders</button>
+</div>
+
+<button class="main" id="start" disabled>Start</button>
+<div class="bar" id="bar"><i></i></div>
+<div id="status" class="sub" style="margin-top:8px"></div>
+<div id="done"></div>
+</main>
+
+<script>
+/*CORE-START*/
+'use strict';
+/* ================= color math (OKLab) ================= */
+const LIN=new Float32Array(256);
+for(let i=0;i<256;i++){const c=i/255;LIN[i]=c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4);}
+function toOk(r,g,b,o){
+  const R=LIN[r],G=LIN[g],B=LIN[b];
+  const l=Math.cbrt(0.4122214708*R+0.5363325363*G+0.0514459929*B);
+  const m=Math.cbrt(0.2119034982*R+0.6806995451*G+0.1073969566*B);
+  const s=Math.cbrt(0.0883024619*R+0.2817188376*G+0.6299787005*B);
+  o[0]=0.2104542553*l+0.7936177850*m-0.0040720468*s;
+  o[1]=1.9779984951*l-2.4285922050*m+0.4505937099*s;
+  o[2]=0.0259040371*l+0.7827717662*m-0.8086757660*s;
+}
+function lin2s(c){c=c<=0.0031308?c*12.92:1.055*Math.pow(c,1/2.4)-0.055;return c<0?0:c>1?255:Math.round(c*255);}
+function fromOk(L,a,b,o){
+  const l=L+0.3963377774*a+0.2158037573*b;
+  const m=L-0.1055613458*a-0.0638541728*b;
+  const s=L-0.0894841775*a-1.2914855480*b;
+  const l3=l*l*l,m3=m*m*m,s3=s*s*s;
+  o[0]=lin2s(4.0767416621*l3-3.3077115913*m3+0.2309699292*s3);
+  o[1]=lin2s(-1.2684380046*l3+2.6097574011*m3-0.3413193965*s3);
+  o[2]=lin2s(-0.0041960863*l3-0.7034186147*m3+1.7076147010*s3);
+}
+function labImage(d,W,H){
+  const n=W*H,L=new Float32Array(n),A=new Float32Array(n),B=new Float32Array(n),v=new Uint8Array(n),tmp=[0,0,0];
+  let nv=0;
+  for(let i=0;i<n;i++){const j=i*4;if(d[j+3]>0){v[i]=1;nv++;toOk(d[j],d[j+1],d[j+2],tmp);L[i]=tmp[0];A[i]=tmp[1];B[i]=tmp[2];}}
+  return{W,H,n,nv,v,c:[L,A,B]};
+}
+
+/* ================= distance transform (wrap-around, exact) ================= */
+const INF=1e20;
+function edt1(f,n,d,s,v,z){
+  let first=-1;
+  for(let q=0;q<n;q++)if(f[q]<INF){first=q;break;}
+  if(first<0){for(let q=0;q<n;q++){d[q]=INF;s[q]=-1;}return;}
+  let k=0;v[0]=first;z[0]=-INF;z[1]=INF;
+  for(let q=first+1;q<n;q++){
+    if(f[q]>=INF)continue;
+    let sv;
+    for(;;){
+      const vk=v[k];
+      sv=((f[q]+q*q)-(f[vk]+vk*vk))/(2*q-2*vk);
+      if(sv<=z[k])k--;else break;
+    }
+    k++;v[k]=q;z[k]=sv;z[k+1]=INF;
+  }
+  k=0;
+  for(let q=0;q<n;q++){
+    while(z[k+1]<q)k++;
+    const dq=q-v[k];d[q]=dq*dq+f[v[k]];s[q]=v[k];
+  }
+}
+/* site: Uint8Array mask (1 = site). Returns squared distance to the nearest site and its index; the grid wraps. */
+function edtSites(site,W,H){
+  const W3=W*3,H3=H*3,m=Math.max(W3,H3);
+  const f=new Float64Array(m),d=new Float64Array(m),s=new Int32Array(m),v=new Int32Array(m),z=new Float64Array(m+1);
+  const gc=new Float64Array(W*H3),sy=new Int32Array(W*H3);
+  for(let x=0;x<W;x++){
+    for(let y=0;y<H3;y++)f[y]=site[(y%H)*W+x]?0:INF;
+    edt1(f,H3,d,s,v,z);
+    for(let y=0;y<H3;y++){gc[y*W+x]=d[y];sy[y*W+x]=s[y];}
+  }
+  const d2=new Float32Array(W*H),src=new Int32Array(W*H);
+  for(let y=H;y<2*H;y++){
+    for(let x=0;x<W3;x++)f[x]=gc[y*W+(x%W)];
+    edt1(f,W3,d,s,v,z);
+    for(let x=W;x<2*W;x++){
+      const j=s[x],o=(y-H)*W+(x-W);
+      if(j<0){d2[o]=INF;src[o]=-1;}
+      else{d2[o]=d[x];const jj=j%W,yy=sy[y*W+jj];src[o]=(yy%H)*W+jj;}
+    }
+  }
+  return{d2,src};
+}
+function signedDist(mask,W,H,miss){
+  const n=W*H;let cnt=0;for(let i=0;i<n;i++)cnt+=mask[i];
+  const out=new Float32Array(n);
+  if(cnt===0){out.fill(-miss);return out;}
+  if(cnt===n){out.fill(Math.max(W,H));return out;}
+  const inv=new Uint8Array(n);for(let i=0;i<n;i++)inv[i]=mask[i]?0:1;
+  const a=edtSites(mask,W,H).d2,b=edtSites(inv,W,H).d2;
+  for(let i=0;i<n;i++)out[i]=mask[i]?Math.sqrt(b[i])-0.5:-(Math.sqrt(a[i])-0.5);
+  return out;
+}
+function componentsWrap(mask,W,H){
+  const n=W*H,comp=new Int32Array(n).fill(-1),stack=new Int32Array(n);let nc=0;
+  for(let s0=0;s0<n;s0++){
+    if(!mask[s0]||comp[s0]>=0)continue;
+    let sp=0;stack[sp++]=s0;comp[s0]=nc;
+    while(sp){
+      const p=stack[--sp],x=p%W,y=(p-x)/W;
+      const nb=[y*W+(x+1)%W,y*W+(x+W-1)%W,((y+1)%H)*W+x,((y+H-1)%H)*W+x];
+      for(let q=0;q<4;q++){const t=nb[q];if(mask[t]&&comp[t]<0){comp[t]=nc;stack[sp++]=t;}}
+    }
+    nc++;
+  }
+  return{comp,nc};
+}
+
+/* ================= part detection ================= */
+const WC=2.0,KMAX=7,PARTMAX=6;
+function featOf(img,i,out,o){out[o]=img.c[0][i];out[o+1]=img.c[1][i]*WC;out[o+2]=img.c[2][i]*WC;}
+function assignAll(img,C,K,lab){
+  const{n,v}=img;let sse=0;
+  for(let i=0;i<n;i++){
+    if(!v[i]){lab[i]=-1;continue;}
+    const x=img.c[0][i],y=img.c[1][i]*WC,z=img.c[2][i]*WC;
+    let bc=0,bd=Infinity;
+    for(let c=0;c<K;c++){const dx=x-C[c*3],dy=y-C[c*3+1],dz=z-C[c*3+2],d=dx*dx+dy*dy+dz*dz;if(d<bd){bd=d;bc=c;}}
+    lab[i]=bc;sse+=bd;
+  }
+  return sse;
+}
+function centersFrom(img,lab,K,C){
+  const s=new Float64Array(K*3),cnt=new Int32Array(K);
+  for(let i=0;i<img.n;i++){const l=lab[i];if(l<0)continue;cnt[l]++;s[l*3]+=img.c[0][i];s[l*3+1]+=img.c[1][i]*WC;s[l*3+2]+=img.c[2][i]*WC;}
+  for(let c=0;c<K;c++)if(cnt[c]){C[c*3]=s[c*3]/cnt[c];C[c*3+1]=s[c*3+1]/cnt[c];C[c*3+2]=s[c*3+2]/cnt[c];}
+  return cnt;
+}
+/* A split is only kept if every part is "real": either spatially coherent (its pixels sit next to each other more than chance would
+   put them) or clearly separated from its nearest neighbour part by an empty gap in colour. A smooth range of shades sliced into
+   bands is neither, so noise is never carved up into parts. */
+function realParts(img,lab,K){
+  const{n,W,H}=img;
+  const cnt=new Float64Array(K),same=new Float64Array(K),tot=new Float64Array(K);let nv=0;
+  for(let i=0;i<n;i++)if(lab[i]>=0){cnt[lab[i]]++;nv++;}
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const a=lab[y*W+x];if(a<0)continue;
+    const r=lab[y*W+(x+1)%W],d=lab[((y+1)%H)*W+x];
+    for(const b of[r,d]){if(b<0)continue;tot[a]++;tot[b]++;if(a===b)same[a]+=2;}
+  }
+  const weak=[];
+  for(let a=0;a<K;a++){
+    const share=cnt[a]/nv,c=tot[a]?(same[a]/tot[a]-share)/Math.max(1e-9,1-share):0;
+    if(c<0.2)weak.push(a);
+  }
+  if(!weak.length)return true;
+  const pts=[...Array(K)].map(()=>[]);
+  const step=Math.max(1,Math.floor(nv/(4096*K)));let seen=0;
+  for(let i=0;i<n;i++){const l=lab[i];if(l<0)continue;if(seen++%step===0)pts[l].push(i);}
+  const cen=pts.map(p=>{const c=[0,0,0];for(const i of p){c[0]+=img.c[0][i];c[1]+=img.c[1][i]*WC;c[2]+=img.c[2][i]*WC;}return c.map(v=>v/Math.max(1,p.length));});
+  const q=(arr,p)=>{arr.sort((a,b)=>a-b);return arr[Math.min(arr.length-1,Math.max(0,Math.floor(p*(arr.length-1))))];};
+  for(const a of weak){
+    let nb=-1,nd=Infinity;
+    for(let b=0;b<K;b++){if(b===a)continue;const d=Math.hypot(cen[a][0]-cen[b][0],cen[a][1]-cen[b][1],cen[a][2]-cen[b][2]);if(d<nd){nd=d;nb=b;}}
+    if(nb<0||nd<1e-9)return false;
+    const u=[(cen[nb][0]-cen[a][0])/nd,(cen[nb][1]-cen[a][1])/nd,(cen[nb][2]-cen[a][2])/nd];
+    const proj=p=>p.map(i=>(img.c[0][i]-cen[a][0])*u[0]+(img.c[1][i]*WC-cen[a][1])*u[1]+(img.c[2][i]*WC-cen[a][2])*u[2]);
+    const pa=proj(pts[a]),pb=proj(pts[nb]);
+    if(!pa.length||!pb.length)return false;
+    if(q(pb,0.05)-q(pa,0.95)<0.01)return false;
+  }
+  return true;
+}
+function analyzeParts(img,minShare){
+  const{n,W,H,v,nv}=img;
+  const label1=new Int8Array(n).fill(-1);for(let i=0;i<n;i++)if(v[i])label1[i]=0;
+  const finish=(lab,K)=>{
+    const sum=new Float64Array(K),cnt=new Int32Array(K);
+    for(let i=0;i<n;i++)if(lab[i]>=0){sum[lab[i]]+=img.c[0][i];cnt[lab[i]]++;}
+    const ord=[...Array(K).keys()].sort((a,b)=>sum[a]/Math.max(1,cnt[a])-sum[b]/Math.max(1,cnt[b]));
+    const remap=new Int8Array(K);ord.forEach((o,k)=>remap[o]=k);
+    const out=new Int8Array(n).fill(-1);for(let i=0;i<n;i++)if(lab[i]>=0)out[i]=remap[lab[i]];
+    const parts=[];
+    for(let k=0;k<K;k++){
+      let c=0;const mu=[0,0,0],sq=[0,0,0];
+      for(let i=0;i<n;i++)if(out[i]===k){c++;for(let ch=0;ch<3;ch++){const x=img.c[ch][i];mu[ch]+=x;sq[ch]+=x*x;}}
+      const mean=mu.map(m=>m/Math.max(1,c)),std=sq.map((s,ch)=>Math.sqrt(Math.max(0,s/Math.max(1,c)-mean[ch]*mean[ch])));
+      parts.push({count:c,share:c/nv,mean,std});
+    }
+    return{K,label:out,parts,nv};
+  };
+  if(nv<6)return finish(label1,1);
+  /* sample points for fitting */
+  const step=Math.max(1,Math.floor(nv/4096)),pts=[];
+  let seen=0;for(let i=0;i<n;i++)if(v[i]){if(seen++%step===0)pts.push(i);}
+  const m=pts.length,P=new Float32Array(m*3);
+  for(let k=0;k<m;k++)featOf(img,pts[k],P,k*3);
+  const C1=new Float64Array(3);centersFrom(img,label1,1,C1);
+  const lab1=new Int8Array(n);const sse1=assignAll(img,C1,1,lab1);
+  if(sse1<1e-9)return finish(label1,1);
+  const cands=new Map();cands.set(1,{K:1,lab:label1,sse:sse1});
+  const need=Math.max(minShare,2/nv);
+  for(let Kc=2;Kc<=KMAX;Kc++){
+    /* farthest-point init on the sample */
+    const C=new Float64Array(KMAX*3);
+    let mx=0,my=0,mz=0;for(let k=0;k<m;k++){mx+=P[k*3];my+=P[k*3+1];mz+=P[k*3+2];}mx/=m;my/=m;mz/=m;
+    let bi=0,bd=Infinity;
+    for(let k=0;k<m;k++){const d=(P[k*3]-mx)**2+(P[k*3+1]-my)**2+(P[k*3+2]-mz)**2;if(d<bd){bd=d;bi=k;}}
+    C[0]=P[bi*3];C[1]=P[bi*3+1];C[2]=P[bi*3+2];
+    const md=new Float64Array(m).fill(Infinity);let K=1;
+    for(let c=1;c<Kc;c++){
+      let fi=0,fd=-1;
+      for(let k=0;k<m;k++){
+        const d=(P[k*3]-C[(c-1)*3])**2+(P[k*3+1]-C[(c-1)*3+1])**2+(P[k*3+2]-C[(c-1)*3+2])**2;
+        if(d<md[k])md[k]=d;if(md[k]>fd){fd=md[k];fi=k;}
+      }
+      if(fd<=1e-10)break;
+      C[c*3]=P[fi*3];C[c*3+1]=P[fi*3+1];C[c*3+2]=P[fi*3+2];K=c+1;
+    }
+    if(K<Kc)break;
+    /* fit on the sample (cheap), then label every pixel once */
+    const sl=new Int8Array(m),cnt=new Int32Array(KMAX);
+    const refine=iters=>{
+      for(let it=0;it<iters;it++){
+        const su=new Float64Array(K*3);cnt.fill(0);
+        for(let k=0;k<m;k++){
+          let bc=0,bd2=Infinity;
+          for(let c=0;c<K;c++){const dx=P[k*3]-C[c*3],dy=P[k*3+1]-C[c*3+1],dz=P[k*3+2]-C[c*3+2],d=dx*dx+dy*dy+dz*dz;if(d<bd2){bd2=d;bc=c;}}
+          sl[k]=bc;cnt[bc]++;su[bc*3]+=P[k*3];su[bc*3+1]+=P[k*3+1];su[bc*3+2]+=P[k*3+2];
+        }
+        for(let c=0;c<K;c++)if(cnt[c]){C[c*3]=su[c*3]/cnt[c];C[c*3+1]=su[c*3+1]/cnt[c];C[c*3+2]=su[c*3+2]/cnt[c];}
+      }
+    };
+    refine(8);
+    /* parts that are too small are merged into the nearest remaining part */
+    for(;;){
+      let sm=-1,sc=Infinity;
+      for(let c=0;c<K;c++)if(cnt[c]/m<need&&cnt[c]<sc){sc=cnt[c];sm=c;}
+      if(sm<0||K<=1)break;
+      for(let c=sm;c<K-1;c++){C[c*3]=C[(c+1)*3];C[c*3+1]=C[(c+1)*3+1];C[c*3+2]=C[(c+1)*3+2];}
+      K--;refine(4);
+    }
+    if(K<2||K>PARTMAX)continue;
+    const lab=new Int8Array(n);
+    assignAll(img,C,K,lab);const fc=centersFrom(img,lab,K,C);
+    const sse=assignAll(img,C,K,lab);
+    let tiny=false;for(let c=0;c<K;c++)if(fc[c]/nv<need*0.5)tiny=true;
+    if(tiny)continue;
+    const prev=cands.get(K);
+    if(!prev||sse<prev.sse)cands.set(K,{K,lab,sse});
+  }
+  let cur=cands.get(1);
+  for(let K=2;K<=PARTMAX;K++){
+    const c=cands.get(K);if(!c)continue;
+    if(cur.sse-c.sse>=0.2*cur.sse&&realParts(img,c.lab,K))cur=c;
+  }
+  return finish(cur.lab,cur.K);
+}
+
+/* ================= matching parts between two textures ================= */
+function matchParts(DP,TP){
+  const KD=DP.K,KT=TP.K,n=DP.label.length;
+  const inter=[...Array(KD)].map(()=>new Float64Array(KT));
+  for(let i=0;i<n;i++){const a=DP.label[i],b=TP.label[i];if(a>=0&&b>=0)inter[a][b]++;}
+  const cost=[...Array(KD)].map(()=>new Float64Array(KT));
+  for(let i=0;i<KD;i++)for(let j=0;j<KT;j++){
+    const pd=DP.parts[i],pt=TP.parts[j];
+    const iou=inter[i][j]/Math.max(1,pd.count+pt.count-inter[i][j]);
+    cost[i][j]=2*Math.abs(pd.mean[0]-pt.mean[0])+4*Math.hypot(pd.mean[1]-pt.mean[1],pd.mean[2]-pt.mean[2])+2*Math.abs(pd.share-pt.share)+2*(1-iou);
+  }
+  const PEN=1.6,memo=new Map();
+  function best(i,mask){
+    if(i===KD){let un=0;for(let j=0;j<KT;j++)if(!(mask>>j&1))un++;return{c:un*PEN,pick:[]};}
+    const key=i*256+mask;if(memo.has(key))return memo.get(key);
+    let r=best(i+1,mask);r={c:r.c+PEN,pick:[-1,...r.pick]};
+    for(let j=0;j<KT;j++){
+      if(mask>>j&1)continue;
+      const s=best(i+1,mask|(1<<j)),c=s.c+cost[i][j];
+      if(c<r.c)r={c,pick:[j,...s.pick]};
+    }
+    memo.set(key,r);return r;
+  }
+  const pick=best(0,0).pick;
+  const d2t=Int8Array.from(pick),t2d=new Int8Array(KT).fill(-1);
+  pick.forEach((j,i)=>{if(j>=0)t2d[j]=i;});
+  /* how well do the two textures line up? (overlap of matched parts, relative to what chance would give) */
+  let obs=0,exp=0,den=0;
+  pick.forEach((j,i)=>{if(j<0)return;const pd=DP.parts[i],pt=TP.parts[j];obs+=inter[i][j];den+=pd.count;exp+=pd.count*pt.share;});
+  const o=den?obs/den:0,e=den?exp/den:0;
+  const align=den?(o-e)/Math.max(1e-9,1-e):0;
+  return{d2t,t2d,align};
+}
+
+/* ================= seam leveling ================= */
+function seamFix(chs,ov,W,H,s){
+  if(s<=0)return;
+  if(W>=2){
+    const band=Math.max(1,Math.min(Math.floor(W/2),Math.round(s*W/2)));
+    for(let y=0;y<H;y++){
+      const i0=y*W,i1=y*W+W-1;if(!ov[i0]||!ov[i1])continue;
+      for(const c of chs){
+        const D=c[i0]-c[i1];
+        for(let j=0;j<band;j++){
+          const f=(band-j)/band;
+          if(ov[y*W+j])c[y*W+j]-=0.5*D*s*f;
+          if(ov[y*W+W-1-j])c[y*W+W-1-j]+=0.5*D*s*f;
+        }
+      }
+    }
+  }
+  if(H>=2){
+    const band=Math.max(1,Math.min(Math.floor(H/2),Math.round(s*H/2)));
+    for(let x=0;x<W;x++){
+      const i0=x,i1=(H-1)*W+x;if(!ov[i0]||!ov[i1])continue;
+      for(const c of chs){
+        const D=c[i0]-c[i1];
+        for(let j=0;j<band;j++){
+          const f=(band-j)/band;
+          if(ov[j*W+x])c[j*W+x]-=0.5*D*s*f;
+          if(ov[(H-1-j)*W+x])c[(H-1-j)*W+x]+=0.5*D*s*f;
+        }
+      }
+    }
+  }
+}
+
+/* ================= the merge ================= */
+const EPS_S=0.004;
+const CH_PAL={all:[1,1,1],color:[0,1,1],layout:[1,0,0]};
+const CH_GRAIN={all:[1,1,1],color:[0,0,0],layout:[1,0,0]};
+function labToRgb(m){const o=[0,0,0];fromOk(Math.min(1,Math.max(0,m[0])),m[1],m[2],o);return o;}
+function hash01(a,b){let h=(Math.imul(a+1,2654435761)^Math.imul(b+7,40503))>>>0;h^=h>>>15;h=Math.imul(h,2246822519)>>>0;h^=h>>>13;return(h>>>0)/4294967296;}
+
+/* src: RGBA bytes of the texture to change. targets: [{data, weight 0..1, role:'all'|'color'|'layout'}] (same W*H, RGBA bytes).
+   o: layout, grain, chroma, tone, filter, features, seam (all 0..1), alpha 'keep'|'new', mode 'mix'|'stack'|'strongest'. */
+function convertTexture(src,targets,W,H,o){
+  const n=W*H,out=new Uint8ClampedArray(src);
+  const D=labImage(src,W,H);
+  if(!D.nv)return{data:out,skipped:'original is fully transparent',report:null};
+  const live=targets.filter(t=>t.weight>0);
+  if(!live.length)return{data:out,skipped:null,report:null};
+  const act=[];
+  for(const t of live){const im=labImage(t.data,W,H);if(im.nv)act.push({data:t.data,weight:t.weight,role:t.role||'all',img:im});}
+  if(!act.length)return{data:out,skipped:'new texture is fully transparent',report:null};
+  const mode=o.mode||'mix';
+  const sumW=act.reduce((s,t)=>s+t.weight,0);
+  for(const t of act){
+    t.eff=mode==='mix'?t.weight/Math.max(1,sumW):Math.min(1,t.weight);
+    t.cp=CH_PAL[t.role];t.cg=CH_GRAIN[t.role];t.hasLay=t.role!=='color';
+  }
+  const DP=analyzeParts(D,0.004),KD=DP.K,LD=DP.label;
+  const minShareT=Math.max(0,o.filter*0.12);
+  for(const t of act){t.P=analyzeParts(t.img,Math.max(minShareT,2/t.img.nv));t.M=matchParts(DP,t.P);}
+  const mu=DP.parts.map(p=>p.mean),sd=DP.parts.map(p=>p.std.map(s=>Math.max(s,EPS_S)));
+  const bD=DP.parts.map((p,i)=>p.std.map((s,c)=>s/sd[i][c]));
+
+  /* --- palette change for every original part, from every target --- */
+  for(const t of act){
+    t.dmu=[];t.dsd=[];
+    const gm=[0,0,0],gs=[0,0,0];let tw=0;
+    for(let i=0;i<KD;i++){
+      const j=t.M.d2t[i];if(j<0)continue;
+      const pt=t.P.parts[j];tw+=DP.parts[i].share;
+      for(let c=0;c<3;c++){gm[c]+=DP.parts[i].share*(pt.mean[c]-mu[i][c]);gs[c]+=DP.parts[i].share*(Math.max(pt.std[c],EPS_S)-sd[i][c]);}
+    }
+    if(tw>0){for(let c=0;c<3;c++){gm[c]/=tw;gs[c]/=tw;}}
+    else{
+      const mo=[0,0,0],mt=[0,0,0];
+      DP.parts.forEach(p=>{for(let c=0;c<3;c++)mo[c]+=p.share*p.mean[c];});
+      t.P.parts.forEach(p=>{for(let c=0;c<3;c++)mt[c]+=p.share*p.mean[c];});
+      for(let c=0;c<3;c++)gm[c]=mt[c]-mo[c];
+    }
+    for(let i=0;i<KD;i++){
+      const j=t.M.d2t[i],dm=[0,0,0],ds=[0,0,0];
+      if(j>=0){const pt=t.P.parts[j];for(let c=0;c<3;c++){dm[c]=pt.mean[c]-mu[i][c];ds[c]=Math.max(pt.std[c],EPS_S)-sd[i][c];}}
+      else for(let c=0;c<3;c++){dm[c]=gm[c];ds[c]=gs[c];}
+      for(let c=0;c<3;c++){dm[c]*=t.cp[c];ds[c]*=t.cp[c];}
+      t.dmu.push(dm);t.dsd.push(ds);
+    }
+  }
+  const palT=act.filter(t=>t.cp[0]||t.cp[1]||t.cp[2]);
+  const acoef=[o.tone,o.chroma,o.chroma];
+  const muN=[],sdN=[];
+  for(let i=0;i<KD;i++){
+    const dm=[0,0,0],ds=[0,0,0];
+    if(palT.length){
+      if(mode==='strongest'){
+        let bt=null,bv=-1;
+        for(const t of palT){const m=Math.hypot(t.dmu[i][0],t.dmu[i][1],t.dmu[i][2])*t.eff;if(m>bv){bv=m;bt=t;}}
+        for(let c=0;c<3;c++){dm[c]=bt.eff*bt.dmu[i][c];ds[c]=bt.eff*bt.dsd[i][c];}
+      }else for(const t of palT)for(let c=0;c<3;c++){dm[c]+=t.eff*t.dmu[i][c];ds[c]+=t.eff*t.dsd[i][c];}
+    }
+    muN.push(mu[i].map((m,c)=>m+acoef[c]*dm[c]));
+    sdN.push(sd[i].map((s,c)=>Math.max(0,s+acoef[c]*ds[c])));
+  }
+
+  /* --- shapes: morph the part layout (signed-distance interpolation, never a color blend) --- */
+  const layTs=act.filter(t=>t.hasLay);
+  const Elay=Math.min(1,layTs.reduce((s,t)=>s+t.eff,0));
+  const donorWeight=1-(1-o.layout)*Elay;
+  let L2=LD,srcD=null;
+  if(layTs.length&&donorWeight<0.9999&&KD>1){
+    const miss=Math.max(4,Math.max(W,H)/4);
+    const sdfD=[],maskD=[];
+    for(let i=0;i<KD;i++){const m=new Uint8Array(n);for(let x=0;x<n;x++)if(LD[x]===i)m[x]=1;maskD.push(m);sdfD.push(signedDist(m,W,H,miss));}
+    const sumE=layTs.reduce((s,t)=>s+t.eff,0);
+    const sdfT=[...Array(KD)].map(()=>new Float32Array(n));
+    for(const t of layTs){
+      const wk=t.eff/sumE,ext=new Int8Array(n);
+      for(let x=0;x<n;x++){const l=t.P.label[x],d=l>=0?t.M.t2d[l]:-1;ext[x]=d>=0?d:LD[x];}
+      for(let i=0;i<KD;i++){
+        const m=new Uint8Array(n);for(let x=0;x<n;x++)if(ext[x]===i)m[x]=1;
+        const s=signedDist(m,W,H,miss),acc=sdfT[i];
+        for(let x=0;x<n;x++)acc[x]+=wk*s[x];
+      }
+    }
+    L2=new Int8Array(n).fill(-1);
+    for(let x=0;x<n;x++){
+      if(!D.v[x])continue;
+      let bi=0,bv=-Infinity;
+      for(let i=0;i<KD;i++){const s=donorWeight*sdfD[i][x]+(1-donorWeight)*sdfT[i][x];if(s>bv){bv=s;bi=i;}}
+      L2[x]=bi;
+    }
+    srcD=maskD.map(m=>edtSites(m,W,H).src);
+  }
+
+  /* --- grain: pixel-level detail of each part, taken from the original and/or the new texture --- */
+  const grainTs=act.filter(t=>t.cg[0]||t.cg[1]||t.cg[2]);
+  const kx=[],bT=[];
+  for(let i=0;i<KD;i++){
+    const k=[0,0,0],b=[0,0,0];
+    for(let c=0;c<3;c++){
+      let ws=0,bs=0;
+      for(const t of grainTs){const j=t.M.d2t[i];if(j<0||!t.cg[c])continue;const pt=t.P.parts[j];ws+=t.eff;bs+=t.eff*(pt.std[c]/Math.max(pt.std[c],EPS_S));}
+      k[c]=(1-o.grain)*Math.min(1,ws);b[c]=ws>0?bs/ws:bD[i][c];
+    }
+    kx.push(k);bT.push(b);
+  }
+  const tSrc=new Map();
+  const targetSource=(ti,j,x)=>{
+    const t=grainTs[ti];if(t.P.label[x]===j)return x;
+    const key=ti*16+j;let s=tSrc.get(key);
+    if(!s){const m=new Uint8Array(n);for(let q=0;q<n;q++)if(t.P.label[q]===j)m[q]=1;s=edtSites(m,W,H).src;tSrc.set(key,s);}
+    return s[x];
+  };
+  const R=[new Float32Array(n),new Float32Array(n),new Float32Array(n)];
+  for(let x=0;x<n;x++){
+    if(!D.v[x])continue;
+    const i=L2[x],sIdx=LD[x]===i?x:srcD[i][x];
+    for(let c=0;c<3;c++){
+      let rD=(D.c[c][sIdx]-mu[i][c])/sd[i][c],r=rD;
+      if(kx[i][c]>0){
+        let acc=0,ws=0;
+        for(let ti=0;ti<grainTs.length;ti++){
+          const t=grainTs[ti];if(!t.cg[c])continue;
+          const j=t.M.d2t[i];if(j<0)continue;
+          const tIdx=targetSource(ti,j,x);if(tIdx<0)continue;
+          const pt=t.P.parts[j];
+          acc+=t.eff*(t.img.c[c][tIdx]-pt.mean[c])/Math.max(pt.std[c],EPS_S);ws+=t.eff;
+        }
+        if(ws>0){const rT=acc/ws;r=(1-kx[i][c])*rD+kx[i][c]*rT;}
+      }
+      R[c][x]=r;
+    }
+  }
+  /* re-center and re-scale per part so the statistics stay exactly what was asked for */
+  for(let i=0;i<KD;i++)for(let c=0;c<3;c++){
+    let cnt=0,s=0,s2=0;
+    for(let x=0;x<n;x++)if(D.v[x]&&L2[x]===i){const r=R[c][x];cnt++;s+=r;s2+=r*r;}
+    if(cnt<2)continue;
+    const mean=s/cnt,std=Math.sqrt(Math.max(0,s2/cnt-mean*mean));
+    const desired=(1-kx[i][c])*bD[i][c]+kx[i][c]*bT[i][c];
+    const f=std>1e-9?desired/std:1;
+    for(let x=0;x<n;x++)if(D.v[x]&&L2[x]===i)R[c][x]=(R[c][x]-mean)*f;
+  }
+  const FL=new Float32Array(n),FA=new Float32Array(n),FB=new Float32Array(n),F=[FL,FA,FB];
+  for(let x=0;x<n;x++){
+    if(!D.v[x])continue;
+    const i=L2[x];
+    for(let c=0;c<3;c++)F[c][x]=muN[i][c]+(sd[i][c]+(sdN[i][c]-sd[i][c]))*R[c][x];
+    if(FL[x]<0)FL[x]=0;else if(FL[x]>1)FL[x]=1;
+  }
+
+  /* --- new features: parts only the new texture has (moss, cracks, ore...), placed where it has them --- */
+  const feat=new Uint8Array(n);
+  const fOwner=new Float32Array(n).fill(-1);
+  if(o.features>0){
+    act.forEach((t,ti)=>{
+      if(!t.hasLay)return;
+      const cov=Math.min(1,o.features*t.eff);if(cov<=0)return;
+      /* the feature layer = every part of the new texture that has no counterpart in the original (all shades of moss together) */
+      const M=new Uint8Array(n);let cntM=0;
+      for(let x=0;x<n;x++){const l=t.P.label[x];if(l>=0&&t.M.t2d[l]<0&&D.v[x]){M[x]=1;cntM++;}}
+      if(!cntM)return;
+      /* which parts of the original can it sit on? */
+      const host=new Float64Array(KD);
+      for(let x=0;x<n;x++)if(M[x])host[LD[x]]++;
+      let hb=0;for(let i=1;i<KD;i++)if(host[i]>host[hb])hb=i;
+      const byPosition=()=>{const a=new Uint8Array(KD);for(let i=0;i<KD;i++)a[i]=(host[i]/cntM>=0.2||i===hb)?1:0;return a;};
+      let allowed;
+      if(t.M.align>=0.4)allowed=byPosition();   /* lined up: it goes where the new texture has it, unless that is only a stray overlap */
+      else{                                      /* not lined up: use the biggest part that surrounds it in the new texture itself */
+        const hostT=new Float64Array(t.P.K);let tot=0;
+        for(let x=0;x<n;x++){
+          if(!M[x])continue;
+          const px=x%W,py=(x-px)/W;
+          const nb=[py*W+(px+1)%W,py*W+(px+W-1)%W,((py+1)%H)*W+px,((py+H-1)%H)*W+px];
+          for(let q=0;q<4;q++){const lq=t.P.label[nb[q]];if(lq<0||t.M.t2d[lq]<0)continue;hostT[lq]++;tot++;}
+        }
+        if(tot>0){
+          let big=-1;
+          for(let q=0;q<t.P.K;q++)if(t.M.t2d[q]>=0&&hostT[q]/tot>=0.15&&(big<0||t.P.parts[q].share>t.P.parts[big].share))big=q;
+          allowed=new Uint8Array(KD);
+          if(big<0)allowed=byPosition();
+          else for(let q=0;q<t.P.K;q++)if(t.M.t2d[q]>=0&&hostT[q]/tot>=0.15&&t.P.parts[q].share>=0.85*t.P.parts[big].share)allowed[t.M.t2d[q]]=1;
+        }else allowed=byPosition();
+      }
+      const Mp=new Uint8Array(n);let N=0;
+      for(let x=0;x<n;x++)if(M[x]&&allowed[L2[x]]){Mp[x]=1;N++;}
+      if(!N)return;
+      /* amount slider: whole patches appear or shrink toward their cores, so no speckle */
+      const{comp,nc}=componentsWrap(Mp,W,H);
+      const inv=new Uint8Array(n);for(let x=0;x<n;x++)inv[x]=Mp[x]?0:1;
+      const dd=edtSites(inv,W,H).d2;
+      const cmax=new Float32Array(nc),depth=new Float32Array(n),pri=new Float32Array(n),idx=[];
+      for(let x=0;x<n;x++)if(Mp[x]){const d=dd[x]>=INF?1:Math.sqrt(dd[x]);depth[x]=d;if(d>cmax[comp[x]])cmax[comp[x]]=d;idx.push(x);}
+      for(const x of idx)pri[x]=0.5*(depth[x]/Math.max(1e-6,cmax[comp[x]]))+0.5*hash01(comp[x],ti*31+7)+1e-6*hash01(x,ti);
+      idx.sort((a,b)=>pri[b]-pri[a]||a-b);
+      const take=Math.round(cov*N);
+      for(let k=0;k<take;k++){
+        const x=idx[k];
+        if(fOwner[x]>=t.eff)continue;
+        fOwner[x]=t.eff;feat[x]=1;
+        FL[x]=t.img.c[0][x];
+        if(t.role==='all'){FA[x]=t.img.c[1][x];FB[x]=t.img.c[2][x];}
+      }
+    });
+  }
+
+  /* --- transparency and seams --- */
+  const newAlpha=o.alpha==='new';
+  let top=null;
+  for(const t of act)if(t.role!=='color'&&(!top||t.weight>top.weight))top=t;
+  if(!top)top=act[0];
+  const ov=new Uint8Array(n);
+  for(let x=0;x<n;x++){
+    if(newAlpha){
+      const a=top.data[x*4+3];
+      if(a>0){ov[x]=1;if(!D.v[x]){FL[x]=top.img.c[0][x];FA[x]=top.img.c[1][x];FB[x]=top.img.c[2][x];}}
+    }else ov[x]=D.v[x];
+  }
+  if(o.seam>0)seamFix(F,ov,W,H,o.seam);
+  const rgb=[0,0,0];
+  for(let x=0;x<n;x++){
+    const j=x*4;
+    if(!ov[x]){out[j]=out[j+1]=out[j+2]=out[j+3]=0;continue;}
+    const unchanged=D.v[x]&&!feat[x]&&Math.abs(FL[x]-D.c[0][x])<1e-5&&Math.abs(FA[x]-D.c[1][x])<1e-5&&Math.abs(FB[x]-D.c[2][x])<1e-5;
+    if(!unchanged){fromOk(FL[x],FA[x],FB[x],rgb);out[j]=rgb[0];out[j+1]=rgb[1];out[j+2]=rgb[2];}
+    out[j+3]=newAlpha?top.data[j+3]:src[j+3];
+  }
+  const report={labels:L2,feat,align:act.map(t=>t.M.align),
+    donor:DP.parts.map(p=>({share:p.share,rgb:labToRgb(p.mean)})),
+    targets:act.map(t=>({role:t.role,weight:t.weight,parts:t.P.parts.map((p,j)=>({share:p.share,rgb:labToRgb(p.mean),match:t.M.t2d[j]}))}))
+  };
+  return{data:out,skipped:null,report};
+}
+
+/* Minimal store-only ZIP writer. files: [{name, data:Uint8Array}] */
+const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(buf){let crc=0xFFFFFFFF;for(let i=0;i<buf.length;i++)crc=CRC_T[(crc^buf[i])&0xFF]^(crc>>>8);return(crc^0xFFFFFFFF)>>>0;}
+function makeZip(files){
+  const enc=new TextEncoder(),parts=[],cds=[];let offset=0;
+  const d=new Date(),dt=(d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1),dd=((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate();
+  for(const f of files){
+    const name=enc.encode(f.name),crc=crc32(f.data),size=f.data.length;
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(6,0x0800,true);lh.setUint16(8,0,true);
+    lh.setUint16(10,dt,true);lh.setUint16(12,dd,true);lh.setUint32(14,crc,true);lh.setUint32(18,size,true);lh.setUint32(22,size,true);
+    lh.setUint16(26,name.length,true);lh.setUint16(28,0,true);
+    parts.push(new Uint8Array(lh.buffer),name,f.data);
+    const ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(8,0x0800,true);ch.setUint16(10,0,true);
+    ch.setUint16(12,dt,true);ch.setUint16(14,dd,true);ch.setUint32(16,crc,true);ch.setUint32(20,size,true);ch.setUint32(24,size,true);
+    ch.setUint16(28,name.length,true);ch.setUint32(42,offset,true);
+    cds.push(new Uint8Array(ch.buffer),name);
+    offset+=30+name.length+size;
+  }
+  let cdSize=0;for(const c of cds)cdSize+=c.length;
+  const end=new DataView(new ArrayBuffer(22));
+  end.setUint32(0,0x06054b50,true);end.setUint16(8,files.length,true);end.setUint16(10,files.length,true);
+  end.setUint32(12,cdSize,true);end.setUint32(16,offset,true);
+  return new Blob([...parts,...cds,new Uint8Array(end.buffer)],{type:'application/zip'});
+}
+if(typeof module!=='undefined')module.exports={convertTexture,makeZip,crc32,toOk,fromOk};
+/*CORE-END*/
+</script>
+
+<script>
+/* Texture Shift: import filter.
+   Reads zip / .mcpack / .mcaddon / Java packs / .jar (and zips nested inside them), unzipped folders and loose
+   images, and keeps only textures that can be used as whole-block (cube face) textures.
+   Pure logic, no DOM: the page supplies an image decoder. Every rejection carries a reason. */
+/*IMPORT-START*/
+(function(root){
+'use strict';
+
+const LIMITS={
+  MAX_IMG_BYTES:48*1024*1024,        // largest single image file read
+  MAX_NEST_BYTES:700*1024*1024,      // largest archive read into memory from inside another archive
+  MAX_DEPTH:3,                       // archives inside archives inside archives
+  MIN_SIZE:8, MAX_SIZE:1024,         // normal accepted square sizes (powers of two)
+  FORCE_MIN:2, FORCE_MAX:2048,       // when the user says "import anyway"
+  MAX_FRAMES:512, MAX_PIXELS:16*1024*1024
+};
+
+/* ---------- reasons, as shown to the person ---------- */
+const GROUPS={
+  mob:        {title:'Mob, entity, armor or model textures',hint:'These wrap around mobs and gear, not blocks.'},
+  weather:    {title:'Weather, sky or environment',hint:'Rain, snow streaks, clouds, sun and moon sheets.'},
+  item:       {title:'Item textures',hint:'Items are not blocks.'},
+  ui:         {title:'Menu, HUD, particle, map or other non-block textures',hint:''},
+  otherfolder:{title:'Not in a block folder',hint:'The pack has a block folder, and this file is somewhere else.'},
+  outside:    {title:'Outside the texture folders',hint:'Pack icons, OptiFine or shader files and similar.'},
+  shape:      {title:'Partial-block shapes (stairs, fences, doors…)',hint:'These belong to blocks that are not a full cube.'},
+  normalmap:  {title:'Normal, specular or emissive maps',hint:'Extra material maps, not color textures.'},
+  atlas:      {title:'Atlases, pack icons and sky sheets',hint:'One image that holds many things.'},
+  transparent:{title:'Mostly transparent cut-outs (rails, torches, plants)',hint:'Whole-block textures cover most of the square, or are glass-like frames or translucent.'},
+  empty:      {title:'Fully transparent images',hint:''},
+  notsquare:  {title:'Not square',hint:'Block textures are square. A tall strip of square frames counts as an animation.'},
+  badsize:    {title:'Size is not a power of two',hint:'Expected 8, 16, 32, 64, 128, 256, 512 or 1024.'},
+  toolarge:   {title:'Too large',hint:'Larger than 1024 × 1024.'},
+  toosmall:   {title:'Too small',hint:'Smaller than 8 × 8.'},
+  unreadable: {title:'Could not be read as an image',hint:'Damaged, empty, or a format this browser cannot open.'},
+  unsupported:{title:'Not an image or a supported archive',hint:'Use .zip, .mcpack, .mcaddon, .jar, or png / jpg / tga / webp / bmp images.'},
+  archive:    {title:'Archives that cannot be opened here',hint:'RAR, 7z and tar files: unpack or re-zip them as .zip first.'},
+  badzip:     {title:'Damaged or unreadable zip files',hint:'The file may be incomplete or corrupt.'},
+  encrypted:  {title:'Encrypted files',hint:'Marketplace and encrypted packs cannot be read.'}
+};
+const NO_FORCE=new Set(['notsquare','toosmall','unreadable','unsupported','archive','badzip','encrypted','empty']);
+
+/* ---------- small helpers ---------- */
+let UID=0;
+const tick=()=>new Promise(r=>setTimeout(r,0));
+let lastYield=0;
+/* give the page a moment to repaint, but only when it has been a while */
+async function breathe(){const t=Date.now();if(t-lastYield>40){await tick();lastYield=Date.now();}}
+const base=p=>p.slice(p.lastIndexOf('/')+1);
+const extOf=n=>{const b=base(n),i=b.lastIndexOf('.');return i<=0?'':b.slice(i+1).toLowerCase();};
+const stemOf=n=>{const b=base(n),i=b.lastIndexOf('.');return i<=0?b:b.slice(0,i);};
+const normPath=p=>String(p).replace(/\\/g,'/').replace(/^(\.\/|\/)+/,'').replace(/\/{2,}/g,'/');
+const isPow2=n=>n>0&&(n&(n-1))===0;
+const IMG_EXT=new Set(['png','jpg','jpeg','tga','webp','bmp']);
+const ARCH_EXT=new Set(['zip','mcpack','mcaddon','mcworld','mctemplate','jar','apk']);
+function isJunk(lp){return /(^|\/)__macosx(\/|$)/.test(lp)||base(lp).startsWith('.')||/(^|\/)(thumbs\.db|desktop\.ini)$/.test(lp);}
+class ImportError extends Error{constructor(code,msg){super(msg);this.code=code;}}
+
+/* ---------- crc32 ---------- */
+let CT=null;
+function crc32(u){
+  if(!CT){CT=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;CT[n]=c>>>0;}}
+  let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=CT[(c^u[i])&255]^(c>>>8);
+  return(c^0xFFFFFFFF)>>>0;
+}
+
+/* ---------- inflate (RFC 1951) ---------- */
+const LBASE=[3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,43,51,59,67,83,99,115,131,163,195,227,258];
+const LEXT=[0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0];
+const DBASE=[1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,257,385,513,769,1025,1537,2049,3073,4097,6145,8193,12289,16385,24577];
+const DEXT=[0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13];
+const CLORDER=[16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15];
+function huff(len,n){
+  const count=new Uint16Array(16),symbol=new Uint16Array(n),offs=new Uint16Array(16);
+  for(let i=0;i<n;i++)count[len[i]]++;
+  for(let l=1;l<15;l++)offs[l+1]=offs[l]+count[l];
+  for(let i=0;i<n;i++)if(len[i])symbol[offs[len[i]]++]=i;
+  return{count,symbol};
+}
+let FIXL=null,FIXD=null;
+function inflateSync(src,outSize){
+  const out=new Uint8Array(outSize);let op=0,sp=0,bb=0,bc=0;
+  const bits=n=>{
+    while(bc<n){if(sp>=src.length)throw new Error('deflate: unexpected end of data');bb|=src[sp++]<<bc;bc+=8;}
+    const v=bb&((1<<n)-1);bb>>>=n;bc-=n;return v;
+  };
+  const decode=h=>{
+    let code=0,first=0,index=0;
+    for(let len=1;len<=15;len++){
+      code|=bits(1);const cnt=h.count[len];
+      if(code-cnt<first)return h.symbol[index+(code-first)];
+      index+=cnt;first+=cnt;first<<=1;code<<=1;
+    }
+    throw new Error('deflate: invalid code');
+  };
+  const codes=(lh,dh)=>{
+    for(;;){
+      let sym=decode(lh);
+      if(sym<256){if(op>=outSize)throw new Error('deflate: output larger than declared');out[op++]=sym;}
+      else if(sym===256)return;
+      else{
+        sym-=257;if(sym>=29)throw new Error('deflate: bad length symbol');
+        const len=LBASE[sym]+bits(LEXT[sym]);
+        const ds=decode(dh);if(ds>=30)throw new Error('deflate: bad distance symbol');
+        const dist=DBASE[ds]+bits(DEXT[ds]);
+        if(dist>op)throw new Error('deflate: distance too far back');
+        if(op+len>outSize)throw new Error('deflate: output larger than declared');
+        for(let i=0;i<len;i++){out[op]=out[op-dist];op++;}
+      }
+    }
+  };
+  let last;
+  do{
+    last=bits(1);const type=bits(2);
+    if(type===0){
+      bb=0;bc=0;
+      if(sp+4>src.length)throw new Error('deflate: unexpected end of data');
+      const len=src[sp]|(src[sp+1]<<8),nlen=src[sp+2]|(src[sp+3]<<8);sp+=4;
+      if((len^0xFFFF)!==nlen)throw new Error('deflate: stored block length mismatch');
+      if(sp+len>src.length)throw new Error('deflate: unexpected end of data');
+      if(op+len>outSize)throw new Error('deflate: output larger than declared');
+      out.set(src.subarray(sp,sp+len),op);op+=len;sp+=len;
+    }else if(type===1){
+      if(!FIXL){
+        const l=new Uint8Array(288);for(let i=0;i<144;i++)l[i]=8;for(let i=144;i<256;i++)l[i]=9;for(let i=256;i<280;i++)l[i]=7;for(let i=280;i<288;i++)l[i]=8;
+        FIXL=huff(l,288);const d=new Uint8Array(30).fill(5);FIXD=huff(d,30);
+      }
+      codes(FIXL,FIXD);
+    }else if(type===2){
+      const nlen=bits(5)+257,ndist=bits(5)+1,ncode=bits(4)+4;
+      if(nlen>286||ndist>30)throw new Error('deflate: too many codes');
+      const cl=new Uint8Array(19);for(let i=0;i<ncode;i++)cl[CLORDER[i]]=bits(3);
+      const clh=huff(cl,19),ll=new Uint8Array(nlen+ndist);let idx=0;
+      while(idx<nlen+ndist){
+        const sym=decode(clh);
+        if(sym<16)ll[idx++]=sym;
+        else{
+          let rep,v=0;
+          if(sym===16){if(!idx)throw new Error('deflate: bad repeat');v=ll[idx-1];rep=3+bits(2);}
+          else if(sym===17)rep=3+bits(3);else rep=11+bits(7);
+          if(idx+rep>nlen+ndist)throw new Error('deflate: bad repeat');
+          while(rep--)ll[idx++]=v;
+        }
+      }
+      if(!ll[256])throw new Error('deflate: missing end-of-block code');
+      codes(huff(ll.subarray(0,nlen),nlen),huff(ll.subarray(nlen),ndist));
+    }else throw new Error('deflate: bad block type');
+  }while(!last);
+  if(op!==outSize)throw new Error('deflate: output smaller than declared');
+  return out;
+}
+async function inflateAny(src,outSize){
+  if(outSize>262144&&typeof DecompressionStream!=='undefined'){
+    try{
+      const ds=new DecompressionStream('deflate-raw'),w=ds.writable.getWriter();
+      w.write(src).catch(()=>{});w.close().catch(()=>{});
+      const rd=ds.readable.getReader(),out=new Uint8Array(outSize);let n=0;
+      for(;;){
+        const{done,value}=await rd.read();if(done)break;
+        if(n+value.length>outSize)throw new Error('output larger than declared');
+        out.set(value,n);n+=value.length;
+      }
+      if(n===outSize)return out;
+    }catch(e){/* fall back to the built-in inflate */}
+  }
+  return inflateSync(src,outSize);
+}
+
+/* ---------- byte sources ---------- */
+function memSource(u){return{size:u.length,read:async(a,b)=>u.subarray(a,Math.min(b,u.length))};}
+function blobBytes(b){
+  if(b.arrayBuffer)return b.arrayBuffer();
+  return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error);r.readAsArrayBuffer(b);});
+}
+/* Reads from a File or Blob. A 2 MB window is kept, so entries that sit next to each other in a zip share one read. */
+function blobSource(blob){
+  let buf=null,wa=0,wb=0;
+  return{size:blob.size,read:async(a,b)=>{
+    b=Math.min(b,blob.size);
+    if(buf&&a>=wa&&b<=wb)return buf.subarray(a-wa,b-wa);
+    const end=Math.min(blob.size,Math.max(b,a+(2<<20)));
+    const u=new Uint8Array(await blobBytes(blob.slice(a,end)));
+    buf=u;wa=a;wb=end;
+    return u.subarray(0,Math.max(0,b-a));
+  }};
+}
+
+/* ---------- zip reader (stored + deflate, zip64, prefixed data, utf-8 or legacy names) ---------- */
+const u16=(u,o)=>u[o]|(u[o+1]<<8);
+const u32=(u,o)=>(u[o]|(u[o+1]<<8)|(u[o+2]<<16)|(u[o+3]<<24))>>>0;
+const u64=(u,o)=>u32(u,o)+u32(u,o+4)*4294967296;
+function decName(b,flags){
+  if(flags&0x800){try{return new TextDecoder('utf-8').decode(b);}catch(e){}}
+  try{return new TextDecoder('utf-8',{fatal:true}).decode(b);}catch(e){}
+  try{return new TextDecoder('windows-1252').decode(b);}catch(e){}
+  let s='';for(let i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);return s;
+}
+async function openZip(src){
+  const size=src.size;
+  if(size<22)throw new ImportError('badzip','Too small to be a zip file.');
+  const tailLen=Math.min(size,65535+22+20);
+  const tail=await src.read(size-tailLen,size);
+  let at=-1;
+  for(let i=tail.length-22;i>=0;i--){
+    if(tail[i]===0x50&&tail[i+1]===0x4b&&tail[i+2]===5&&tail[i+3]===6&&i+22+u16(tail,i+20)<=tail.length){at=i;break;}
+  }
+  if(at<0)throw new ImportError('badzip','This does not look like a complete zip file (no end record found). A download may have been cut short.');
+  const eocd=size-tailLen+at;
+  let total=u16(tail,at+10),cdSize=u32(tail,at+12),cdOff=u32(tail,at+16);
+  if(total===0xFFFF||cdSize===0xFFFFFFFF||cdOff===0xFFFFFFFF){
+    if(eocd>=20){
+      const loc=await src.read(eocd-20,eocd);
+      if(u32(loc,0)===0x07064b50){
+        const p64=u64(loc,8),r=await src.read(p64,p64+56);
+        if(r.length>=56&&u32(r,0)===0x06064b50){total=u64(r,32);cdSize=u64(r,40);cdOff=u64(r,48);}
+      }
+    }
+  }
+  let shift=0;
+  if(cdOff+cdSize>size)throw new ImportError('badzip','The zip’s file list points past the end of the file. It is probably incomplete.');
+  let cd=await src.read(cdOff,cdOff+cdSize);
+  if(cd.length<4||u32(cd,0)!==0x02014b50){
+    /* data placed in front of the zip (self-extractors, wrappers): offsets are relative to where the zip begins */
+    const alt=eocd-cdSize;
+    if(alt>=0&&alt!==cdOff){
+      const cd2=await src.read(alt,alt+cdSize);
+      if(cd2.length>=4&&u32(cd2,0)===0x02014b50){cd=cd2;shift=alt-cdOff;}
+    }
+  }
+  const entries=[];let p=0;
+  while(p+46<=cd.length&&u32(cd,p)===0x02014b50){
+    const flags=u16(cd,p+8),method=u16(cd,p+10),crc=u32(cd,p+16);
+    let csize=u32(cd,p+20),usize=u32(cd,p+24);
+    const nl=u16(cd,p+28),el=u16(cd,p+30),cl=u16(cd,p+32);let off=u32(cd,p+42);
+    const name=decName(cd.subarray(p+46,p+46+nl),flags);
+    let q=p+46+nl;const qe=q+el;
+    while(q+4<=qe){
+      const id=u16(cd,q),sz=u16(cd,q+2);
+      if(id===1){
+        let r=q+4;
+        if(usize===0xFFFFFFFF){usize=u64(cd,r);r+=8;}
+        if(csize===0xFFFFFFFF){csize=u64(cd,r);r+=8;}
+        if(off===0xFFFFFFFF){off=u64(cd,r);r+=8;}
+      }
+      q+=4+sz;
+    }
+    entries.push({name,flags,method,crc,csize,usize,off:off+shift,dir:name.endsWith('/')});
+    p+=46+nl+el+cl;
+  }
+  if(!entries.length&&total>0)throw new ImportError('badzip','The zip’s file list is damaged.');
+  async function read(e,maxOut){
+    if(e.flags&1)throw new ImportError('encrypted','This entry is encrypted.');
+    if(e.method!==0&&e.method!==8)throw new ImportError('unreadable','Unsupported zip compression (method '+e.method+').');
+    if(e.usize>maxOut)throw new ImportError('toolarge','Entry is larger than '+Math.round(maxOut/1048576)+' MB.');
+    const lh=await src.read(e.off,e.off+30);
+    if(lh.length<30||u32(lh,0)!==0x04034b50)throw new ImportError('unreadable','Damaged zip entry (bad local header).');
+    const start=e.off+30+u16(lh,26)+u16(lh,28);
+    const raw=await src.read(start,start+e.csize);
+    if(raw.length!==e.csize)throw new ImportError('unreadable','Zip entry is cut short.');
+    let out;
+    if(e.method===0){if(e.csize!==e.usize)throw new ImportError('unreadable','Damaged zip entry (size mismatch).');out=raw;}
+    else{try{out=await inflateAny(raw,e.usize);}catch(err){throw new ImportError('unreadable','Damaged zip entry ('+err.message+').');}}
+    if(crc32(out)!==e.crc)throw new ImportError('unreadable','Damaged zip entry (checksum mismatch).');
+    return out;
+  }
+  return{entries,read};
+}
+
+/* ---------- image sniffing and the formats a browser cannot decode ---------- */
+function startsWith(u,arr,o=0){for(let i=0;i<arr.length;i++)if(u[o+i]!==arr[i])return false;return u.length>=o+arr.length;}
+function tgaPlausible(u){
+  if(u.length<18)return false;
+  const t=u[2],w=u16(u,12),h=u16(u,14),bpp=u[16];
+  return[1,2,3,9,10,11].includes(t)&&w>0&&h>0&&[8,15,16,24,32].includes(bpp)&&(u[1]===0||u[1]===1);
+}
+function sniffType(u,name){
+  if(startsWith(u,[0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A]))return'png';
+  if(startsWith(u,[0xFF,0xD8,0xFF]))return'jpeg';
+  if(startsWith(u,[0x52,0x49,0x46,0x46])&&startsWith(u,[0x57,0x45,0x42,0x50],8))return'webp';
+  if(startsWith(u,[0x42,0x4D]))return'bmp';
+  if(startsWith(u,[0x50,0x4B,3,4])||startsWith(u,[0x50,0x4B,5,6]))return'zip';
+  if(startsWith(u,[0x52,0x61,0x72,0x21]))return'rar';
+  if(startsWith(u,[0x37,0x7A,0xBC,0xAF,0x27,0x1C]))return'7z';
+  if(startsWith(u,[0x1F,0x8B]))return'gzip';
+  if(u.length>=262&&startsWith(u,[0x75,0x73,0x74,0x61,0x72],257))return'tar';
+  if(extOf(name||'')==='tga'&&tgaPlausible(u))return'tga';
+  return'';
+}
+function imageInfo(u,type){
+  try{
+    if(type==='png'){if(u.length>=24&&startsWith(u,[0x49,0x48,0x44,0x52],12)){const be=o=>((u[o]<<24)|(u[o+1]<<16)|(u[o+2]<<8)|u[o+3])>>>0;return{w:be(16),h:be(20)};}}
+    else if(type==='jpeg'){
+      let i=2;
+      while(i+9<u.length){
+        if(u[i]!==0xFF){i++;continue;}
+        const m=u[i+1];
+        if(m===0xFF){i++;continue;}
+        if(m>=0xC0&&m<=0xCF&&m!==0xC4&&m!==0xC8&&m!==0xCC)return{h:(u[i+5]<<8)|u[i+6],w:(u[i+7]<<8)|u[i+8]};
+        if(m===0xD8||m===0x01||(m>=0xD0&&m<=0xD7)){i+=2;continue;}
+        i+=2+((u[i+2]<<8)|u[i+3]);
+      }
+    }else if(type==='webp'){
+      const tag=String.fromCharCode(u[12],u[13],u[14],u[15]);
+      if(tag==='VP8 ')return{w:u16(u,26)&0x3fff,h:u16(u,28)&0x3fff};
+      if(tag==='VP8L')return{w:1+(((u[22]&0x3f)<<8)|u[21]),h:1+(((u[24]&0x0f)<<10)|(u[23]<<2)|((u[22]&0xc0)>>6))};
+      if(tag==='VP8X')return{w:1+(u[24]|(u[25]<<8)|(u[26]<<16)),h:1+(u[27]|(u[28]<<8)|(u[29]<<16))};
+    }else if(type==='bmp'){
+      const s=o=>(u[o]|(u[o+1]<<8)|(u[o+2]<<16)|(u[o+3]<<24));
+      return{w:Math.abs(s(18)),h:Math.abs(s(22))};
+    }else if(type==='tga')return{w:u16(u,12),h:u16(u,14)};
+  }catch(e){}
+  return null;
+}
+function decodeTGA(u){
+  if(u.length<18)throw new Error('TGA file is too short');
+  const idLen=u[0],cmT=u[1],it=u[2],cmFirst=u16(u,3),cmLen=u16(u,5),cmBpp=u[7],w=u16(u,12),h=u16(u,14),bpp=u[16],desc=u[17];
+  const kind=it&7,rle=it>=9;
+  if(![1,2,3].includes(kind))throw new Error('unsupported TGA type '+it);
+  if(!w||!h)throw new Error('TGA has no size');
+  let p=18+idLen,pal=null;
+  if(cmT===1){
+    const eb=(cmBpp+7)>>3;pal=new Uint8Array(cmLen*4);
+    for(let i=0;i<cmLen;i++,p+=eb){
+      if(eb===2){const v=u[p]|(u[p+1]<<8);pal[i*4]=((v>>10)&31)*255/31;pal[i*4+1]=((v>>5)&31)*255/31;pal[i*4+2]=(v&31)*255/31;pal[i*4+3]=255;}
+      else{pal[i*4]=u[p+2];pal[i*4+1]=u[p+1];pal[i*4+2]=u[p];pal[i*4+3]=eb===4?u[p+3]:255;}
+    }
+  }
+  const bpx=(bpp+7)>>3,n=w*h,px=new Uint8Array(n*4);
+  const put=(k,o)=>{
+    if(kind===1){
+      let idx=bpx===2?(u[o]|(u[o+1]<<8)):u[o];idx-=cmFirst;
+      if(!pal||idx<0||idx>=cmLen)throw new Error('TGA palette index out of range');
+      px[k]=pal[idx*4];px[k+1]=pal[idx*4+1];px[k+2]=pal[idx*4+2];px[k+3]=pal[idx*4+3];
+    }else if(kind===3){
+      px[k]=px[k+1]=px[k+2]=u[o];px[k+3]=bpx===2?u[o+1]:255;
+    }else if(bpp===24){px[k]=u[o+2];px[k+1]=u[o+1];px[k+2]=u[o];px[k+3]=255;}
+    else if(bpp===32){px[k]=u[o+2];px[k+1]=u[o+1];px[k+2]=u[o];px[k+3]=u[o+3];}
+    else{const v=u[o]|(u[o+1]<<8);px[k]=((v>>10)&31)*255/31;px[k+1]=((v>>5)&31)*255/31;px[k+2]=(v&31)*255/31;px[k+3]=(v&0x8000)||!(desc&15)?255:0;}
+  };
+  if(!rle){
+    if(p+n*bpx>u.length)throw new Error('TGA data is cut short');
+    for(let i=0;i<n;i++)put(i*4,p+i*bpx);
+  }else{
+    let i=0;
+    while(i<n){
+      if(p>=u.length)throw new Error('TGA data is cut short');
+      const hd=u[p++],c=(hd&127)+1;
+      if(hd&128){
+        if(p+bpx>u.length)throw new Error('TGA data is cut short');
+        for(let k=0;k<c&&i<n;k++,i++)put(i*4,p);
+        p+=bpx;
+      }else{
+        if(p+c*bpx>u.length)throw new Error('TGA data is cut short');
+        for(let k=0;k<c&&i<n;k++,i++,p+=bpx)put(i*4,p);
+      }
+    }
+  }
+  if(bpp===32||(kind===3&&bpx===2)||(kind===1&&cmBpp===32)){
+    let any=false;for(let i=3;i<px.length;i+=4)if(px[i]){any=true;break;}
+    if(!any)for(let i=3;i<px.length;i+=4)px[i]=255;
+  }
+  const out=new Uint8ClampedArray(n*4),top=!!(desc&0x20),right=!!(desc&0x10);
+  for(let y=0;y<h;y++){
+    const sy=top?y:h-1-y;
+    for(let x=0;x<w;x++){
+      const sx=right?w-1-x:x,s=(sy*w+sx)*4,d=(y*w+x)*4;
+      out[d]=px[s];out[d+1]=px[s+1];out[d+2]=px[s+2];out[d+3]=px[s+3];
+    }
+  }
+  return{w,h,data:out};
+}
+
+/* ---------- rules: where the file lives ---------- */
+const FOLDER_GROUP={
+  entity:'mob',entities:'mob',mob:'mob',mobs:'mob',models:'mob',model:'mob',armor:'mob',armour:'mob',creature:'mob',creatures:'mob',skin:'mob',skins:'mob',attachables:'mob',
+  environment:'weather',weather:'weather',sky:'weather',clouds:'weather',
+  item:'item',items:'item',
+  gui:'ui',ui:'ui',hud:'ui',particle:'ui',particles:'ui',font:'ui',map:'ui',maps:'ui',painting:'ui',paintings:'ui',misc:'ui',colormap:'ui',colormaps:'ui',
+  effect:'ui',effects:'ui',mob_effect:'ui',trims:'ui',persona_thumbnails:'ui',persona:'ui',flame_atlas:'ui'
+};
+/* Inside a pack, only block folders are used: Java assets/<namespace>/textures/block(s)/, Bedrock textures/blocks/. */
+function scanPath(lp){
+  let m=/^(?:(.*?)\/)?assets\/([^\/]+)\/textures\/blocks?\/(.+)$/.exec(lp);
+  if(m)return{kind:'block',prefix:m[1]||'',ns:m[2],rel:m[3]};
+  m=/^(?:(.*?)\/)?textures\/blocks?\/(.+)$/.exec(lp);
+  if(m)return{kind:'block',prefix:m[1]||'',ns:'',rel:m[2]};
+  m=/(?:^|\/)textures\/([^\/]+)\//.exec(lp);
+  if(m)return{kind:'reject',code:FOLDER_GROUP[m[1]]||'otherfolder',folder:m[1]};
+  if(/(?:^|\/)textures\/[^\/]+$/.test(lp))return{kind:'reject',code:'otherfolder',folder:''};
+  return{kind:'reject',code:'outside',folder:''};
+}
+/* Outside any pack structure (loose images, plain zips) the folders are only checked for obvious non-block names. */
+function scanLoose(lp){
+  const segs=lp.split('/');segs.pop();
+  for(const s of segs){const g=FOLDER_GROUP[s];if(g)return{kind:'reject',code:g,folder:s};}
+  return{kind:'block',prefix:'',ns:'',rel:lp};
+}
+
+/* ---------- rules: what the file is called ---------- */
+const MOBS=new Set(['steve','alex','creeper','zombie','skeleton','spider','enderman','villager','pillager','pig','cow','sheep','chicken','wolf','cat','horse','bat','bee','ghast','blaze','witch','squid','ocelot','llama','panda','fox','dolphin','turtle','phantom','drowned','husk','stray','wither','ravager','vex','evoker','guardian','shulker','endermite','silverfish','strider','hoglin','piglin','zoglin','axolotl','goat','frog','tadpole','allo','warden','camel','sniffer','armadillo']);
+const WEATHER_STEMS=new Set(['rain','clouds','cloud','sun','moon','moon_phases','end_sky','sky','weather']);
+const ATLAS_STEMS=new Set(['terrain','atlas','terrain-atlas','terrain_atlas','pack','pack_icon','icon','world_icon','logo','thumbnail','tilesheet']);
+const MAP_SUFFIX=new Set(['n','s','e','a','normal','specular','emissive','mer','mers','heightmap','height','bump','ao','roughness','metallic','pom']);
+const SHAPE_TOKENS=new Set(['stairs','stair','fence','fences','gate','door','doors','trapdoor','trapdoors','pane','panes','bars','ladder','rail','rails','torch','torches','vine','vines','sapling','saplings','flower','flowers','cauldron','hopper','brewing','anvil','lectern','grindstone','bell','campfire','lever','tripwire','repeater','comparator','candle','scaffolding','sign','signs','banner','bed','chest','cake','enchanting','daylight','pot','egg','destroy','button','skull']);
+/* has(baseStem): is there a sibling image with that name? (labPBR/RTX maps sit next to the color texture they belong to) */
+function nameRule(stem,has){
+  const s=stem.toLowerCase(),t=s.split(/[_\-\s.]+/).filter(Boolean),last=t[t.length-1]||'';
+  if(MOBS.has(s))return{code:'mob',reason:'“'+stem+'” is a mob skin.'};
+  if(WEATHER_STEMS.has(s)||t.includes('weather'))return{code:'weather',reason:'“'+stem+'” is a weather or sky texture.'};
+  if(ATLAS_STEMS.has(s)||t.includes('atlas'))return{code:'atlas',reason:'“'+stem+'” looks like an atlas or pack icon, not a single block texture.'};
+  if(t.length>1&&MAP_SUFFIX.has(last)&&has&&has(s.slice(0,s.length-last.length-1)))return{code:'normalmap',reason:'This is the “_'+last+'” map that belongs to the texture “'+s.slice(0,s.length-last.length-1)+'”, not a color texture.'};
+  for(const w of t)if(SHAPE_TOKENS.has(w))return{code:'shape',reason:'Name contains “'+w+'”, which belongs to a block that is not a full cube.'};
+  if(t.length>1&&last==='wall')return{code:'shape',reason:'Name ends in “wall”, which is a partial-block shape.'};
+  if(t.length>1&&last==='slab')return{code:'shape',reason:'Name ends in “slab”, which is a partial-block shape.'};
+  if(s.includes('portal_frame'))return{code:'shape',reason:'Name contains “portal frame”, which is not a full cube.'};
+  {const i=t.indexOf('lantern');if(i>=0&&!(t[i-1]==='sea'||t[i-1]==='o'))return{code:'shape',reason:'Name contains “lantern”, which is not a full cube.'};}
+  if(t.length>1&&last==='chain')return{code:'shape',reason:'Name ends in “chain”, which is a partial-block shape.'};
+  if(s==='chain')return{code:'shape',reason:'“chain” is a partial-block shape.'};
+  return null;
+}
+
+/* ---------- rules: the picture itself ---------- */
+function checkDims(w,h,force){
+  if(!(w>0&&h>0))return{code:'unreadable',reason:'The image has no size.'};
+  let frames=1;
+  if(h>w&&h%w===0&&h/w<=LIMITS.MAX_FRAMES)frames=h/w;
+  else if(w!==h)return{code:'notsquare',reason:'Not square ('+w+'×'+h+'). Block textures are square, such as 16×16 or 32×32. A tall strip of square frames is accepted as an animation.'};
+  const s=w;
+  if(w*h>LIMITS.MAX_PIXELS)return{code:'toolarge',reason:'Too large ('+w+'×'+h+').',size:s};
+  const min=force?LIMITS.FORCE_MIN:LIMITS.MIN_SIZE,max=force?LIMITS.FORCE_MAX:LIMITS.MAX_SIZE;
+  if(s<min)return{code:'toosmall',reason:'Too small ('+s+'×'+s+'); the smallest accepted is '+LIMITS.MIN_SIZE+'×'+LIMITS.MIN_SIZE+'.',size:s};
+  if(s>max)return{code:'toolarge',reason:'Too large ('+s+'×'+s+'); the largest accepted is '+LIMITS.MAX_SIZE+'×'+LIMITS.MAX_SIZE+'.',size:s};
+  if(!force&&!isPow2(s))return{code:'badsize',reason:'Size '+s+'×'+s+' is not a power of two (8, 16, 32, 64, 128, 256, 512 or 1024).',size:s};
+  return{ok:true,frames,size:s};
+}
+function classifyPixels(data,w,h){
+  const n=w*h;let opaque=0,visible=0,edge=0,edgeN=0;
+  for(let i=0;i<n;i++){
+    const a=data[i*4+3];
+    if(a>=200)opaque++;
+    if(a>=16)visible++;
+  }
+  for(let x=0;x<w;x++)for(const y of[0,h-1]){edgeN++;if(data[(y*w+x)*4+3]>=200)edge++;}
+  for(let y=1;y<h-1;y++)for(const x of[0,w-1]){edgeN++;if(data[(y*w+x)*4+3]>=200)edge++;}
+  const stats={opaque:opaque/n,visible:visible/n,edge:edgeN?edge/edgeN:0};
+  if(stats.visible<0.01)return{ok:false,code:'empty',reason:'The image is fully transparent.',stats};
+  if(stats.opaque>=0.5)return{ok:true,stats,translucent:false};
+  if(stats.visible>=0.9)return{ok:true,stats,translucent:true};
+  if(stats.edge>=0.9&&stats.visible>=0.1)return{ok:true,stats,translucent:false};
+  return{ok:false,code:'transparent',reason:'Only '+Math.round(stats.visible*100)+'% of the image is visible, so it is a cut-out shape (plant, rail, torch…) rather than a whole block.',stats};
+}
+function firstFrame(r){
+  if(r.h>r.w&&r.h%r.w===0)return{w:r.w,h:r.w,data:r.data.slice(0,r.w*r.w*4)};
+  return r;
+}
+function makeThumb(data,w,h,max){
+  max=max||32;const t=Math.min(max,w),k=w/t,out=new Uint8ClampedArray(t*t*4);
+  for(let y=0;y<t;y++)for(let x=0;x<t;x++){
+    const x0=Math.floor(x*k),x1=Math.max(x0+1,Math.floor((x+1)*k)),y0=Math.floor(y*k),y1=Math.max(y0+1,Math.floor((y+1)*k));
+    let r=0,g=0,b=0,a=0,c=0;
+    for(let yy=y0;yy<y1;yy++)for(let xx=x0;xx<x1;xx++){
+      const i=(yy*w+xx)*4,al=data[i+3];r+=data[i]*al;g+=data[i+1]*al;b+=data[i+2]*al;a+=al;c++;
+    }
+    const o=(y*t+x)*4;
+    if(a>0){out[o]=r/a;out[o+1]=g/a;out[o+2]=b/a;out[o+3]=a/c;}
+  }
+  return{t,data:out};
+}
+
+/* ---------- pack names ---------- */
+async function packName(E,prefix,cache){
+  if(cache.has(prefix))return cache.get(prefix);
+  let name='';
+  const pre=prefix?prefix+'/':'';
+  for(const f of['manifest.json','pack_manifest.json']){
+    const x=E.byLp.get(pre+f);
+    if(!x)continue;
+    try{
+      let txt=new TextDecoder('utf-8').decode(await x.e.read(1048576));
+      txt=txt.replace(/^﻿/,'');
+      let j;try{j=JSON.parse(txt);}catch(e){j=JSON.parse(txt.replace(/\/\*[\s\S]*?\*\//g,'').replace(/(^|[^:"'])\/\/.*$/gm,'$1').replace(/,\s*([}\]])/g,'$1'));}
+      let nm=j&&j.header&&typeof j.header.name==='string'?j.header.name.trim():'';
+      if(nm&&/^[A-Za-z0-9_.]+\.[A-Za-z0-9_.]+$/.test(nm)){
+        const lang=E.byLp.get(pre+'texts/en_us.lang')||E.byLp.get(pre+'texts/en_gb.lang');
+        let found='';
+        if(lang){
+          try{
+            const lt=new TextDecoder('utf-8').decode(await lang.e.read(1048576));
+            for(const line of lt.split(/\r?\n/)){const i=line.indexOf('=');if(i>0&&line.slice(0,i).trim()===nm){found=line.slice(i+1).split('#')[0].trim();break;}}
+          }catch(e){}
+        }
+        nm=found;
+      }
+      if(nm){name=nm.replace(/§./g,'');break;}
+    }catch(e){}
+  }
+  cache.set(prefix,name);return name;
+}
+
+/* ---------- one image: from a candidate entry to an accepted item or a rejection ---------- */
+async function decodeFirst(bytes,opt){
+  const type=sniffType(bytes,'');
+  let r;
+  if(type==='tga'||(!type&&tgaPlausible(bytes)))r=decodeTGA(bytes);
+  else{if(!type)throw new Error('not a recognised image');r=await opt.decode(bytes,type);}
+  return firstFrame(r);
+}
+function reject(E,code,reason){
+  return{reject:{code,reason,path:E.p,name:base(E.rel)||base(E.p),pack:E.packLabel,canForce:!NO_FORCE.has(code),E}};
+}
+async function evalEntry(E,force,opt){
+  if(!force){
+    if(E.pathReject){
+      const g=E.pathReject;
+      const where=g.folder?' (folder “'+g.folder+'”)':'';
+      return reject(E,g.code,E.mode==='pack'&&g.code==='outside'?'This file is outside the pack’s texture folders.':
+        E.mode==='pack'&&g.code==='otherfolder'?'This file is not inside a block folder'+where+'.':
+        'This file sits in a folder for '+GROUPS[g.code].title.toLowerCase()+where+'.');
+    }
+    const nr=nameRule(E.stem,E.has);
+    if(nr)return reject(E,nr.code,nr.reason);
+  }
+  let bytes;
+  try{bytes=await E.x.e.read(LIMITS.MAX_IMG_BYTES);}
+  catch(err){return reject(E,err.code==='encrypted'?'encrypted':err.code==='toolarge'?'toolarge':'unreadable',err.message||'Could not read this file.');}
+  const type=sniffType(bytes,E.x.p);
+  if(!type||['zip','rar','7z','gzip','tar'].includes(type)){
+    const head=new TextDecoder('utf-8').decode(bytes.subarray(0,60));
+    return reject(E,'unreadable',/^version https:\/\/git-lfs/.test(head)?'This is a Git LFS placeholder, not the real image. Download the real file from the repository.':bytes.length?'The file is not a readable image (its contents do not match png, jpg, tga, webp or bmp).':'The file is empty.');
+  }
+  const info=imageInfo(bytes,type);
+  if(info){const d=checkDims(info.w,info.h,force);if(!d.ok)return reject(E,d.code,d.reason);}
+  const crc=E.x.e.crc!=null?E.x.e.crc:crc32(bytes);
+  const key=(E.packLabel+'|'+E.rel+'|'+crc.toString(16)).toLowerCase();
+  if(opt.known.has(key))return{dup:opt.known.get(key)};
+  let img;
+  try{img=await decodeFirst(bytes,opt);}catch(err){return reject(E,'unreadable','Could not decode this image ('+(err&&err.message||'unknown error')+').');}
+  const d2=checkDims(img.w,img.h,force);
+  if(!d2.ok)return reject(E,d2.code,d2.reason);
+  let frames=1;
+  if(info&&info.h>info.w&&info.h%info.w===0)frames=info.h/info.w;
+  const px=classifyPixels(img.data,img.w,img.h);
+  if(!px.ok&&!(force&&px.code==='transparent'))return reject(E,px.code,px.reason);
+  const item={
+    uid:++UID,key,name:E.stem+'.png',stem:E.stem,pack:E.packLabel,path:E.p,w:img.w,h:img.h,frames,
+    animated:frames>1,translucent:!!px.translucent,forced:!!(force&&(E.pathReject||nameRule(E.stem,E.has)||!px.ok||!checkDims(img.w,img.h,false).ok)),
+    thumb:makeThumb(img.data,img.w,img.h),
+    load:async()=>{const b=await E.x.e.read(LIMITS.MAX_IMG_BYTES);return decodeFirst(b,opt);}
+  };
+  opt.known.set(key,item);
+  return{item};
+}
+
+/* ---------- archives ---------- */
+function record(res,out){
+  if(out.item)res.accepted.push(out.item);
+  else if(out.dup){res.matched.push(out.dup);res.duplicates++;}
+  else res.rejected.push(out.reject);
+}
+async function processArchive(arch,ctx){
+  const{opt,res}=ctx;
+  const ents=[];
+  for(const e of arch.entries){
+    const p=normPath(e.path);
+    if(!p||p.endsWith('/'))continue;
+    const lp=p.toLowerCase();
+    if(isJunk(lp)){res.ignored++;continue;}
+    ents.push({e,p,lp});
+  }
+  const byLp=new Map(ents.map(x=>[x.lp,x]));
+  const isPack=ents.some(x=>/(^|\/)textures\//.test(x.lp)||/(^|\/)pack\.mcmeta$/.test(x.lp));
+  const cands=[],nested=[];
+  for(const x of ents){
+    const ext=extOf(x.lp);
+    if(IMG_EXT.has(ext))cands.push(x);
+    else if(ARCH_EXT.has(ext))nested.push(x);
+    else res.ignored++;
+  }
+  const stems=new Set(cands.map(x=>x.lp.slice(0,x.lp.lastIndexOf('/')+1)+stemOf(x.lp)));
+  const nameCache=new Map(),E0={byLp};
+  let n=0;
+  for(const x of cands){
+    if(opt.stop&&opt.stop()){res.stopped=true;return;}
+    const sc=isPack?scanPath(x.lp):scanLoose(x.lp);
+    const E={x,p:x.p,mode:isPack?'pack':'loose',byLp,arch};
+    if(sc.kind==='block'){
+      E.rel=isPack?sc.rel:x.p;E.pathReject=null;
+      let label;
+      if(isPack){
+        const pn=await packName(E0,sc.prefix,nameCache);
+        label=pn||(sc.prefix?base(x.p.slice(0,sc.prefix.length)):ctx.label);
+        if(sc.ns&&sc.ns!=='minecraft')label+=' · '+sc.ns;
+      }else label=ctx.label;
+      E.packLabel=label;
+    }else{E.rel=x.p;E.pathReject=sc;E.packLabel=ctx.label;}
+    E.stem=stemOf(E.rel);
+    {const dir=x.lp.slice(0,x.lp.lastIndexOf('/')+1);E.has=b=>stems.has(dir+b);}
+    record(res,await evalEntry(E,false,opt));
+    res.seen++;
+    if(opt.onProgress&&(++n%10===0))opt.onProgress({label:ctx.label,seen:res.seen,accepted:res.accepted.length,rejected:res.rejected.length});
+    await breathe();
+  }
+  for(const x of nested){
+    if(opt.stop&&opt.stop()){res.stopped=true;return;}
+    if(ctx.depth>=LIMITS.MAX_DEPTH){res.rejected.push({code:'badzip',reason:'Archives nested more than '+LIMITS.MAX_DEPTH+' levels deep are not opened.',path:x.p,name:base(x.p),pack:ctx.label,canForce:false});continue;}
+    let bytes;
+    try{bytes=await x.e.read(LIMITS.MAX_NEST_BYTES);}
+    catch(err){res.rejected.push({code:err.code==='encrypted'?'encrypted':'badzip',reason:err.message,path:x.p,name:base(x.p),pack:ctx.label,canForce:false});continue;}
+    if(sniffType(bytes,'')!=='zip'){res.ignored++;continue;}
+    try{
+      const z=await openZip(memSource(bytes));
+      await processArchive({entries:z.entries.map(e=>({path:e.name,crc:e.crc,read:m=>z.read(e,m)}))},{...ctx,label:stemOf(x.p),depth:ctx.depth+1});
+    }catch(err){res.rejected.push({code:err.code==='badzip'?'badzip':'unreadable',reason:err.message||'Could not open this archive.',path:x.p,name:base(x.p),pack:ctx.label,canForce:false});}
+    await breathe();
+  }
+}
+
+/* inputs: [{name, path?, source:{size,read(a,b)}}]  (path may hold a relative folder path)
+   opt: {decode(bytes,type)->{w,h,data}, known:Map, onProgress, stop} */
+async function importFiles(inputs,opt){
+  opt.known=opt.known||new Map();
+  const res={accepted:[],matched:[],rejected:[],ignored:0,duplicates:0,seen:0,stopped:false};
+  const loose=[],folders=new Map(),top=[];
+  for(const f of inputs){
+    const path=normPath(f.path||f.name);
+    if(path.includes('/')){const k=path.split('/')[0];if(!folders.has(k))folders.set(k,[]);folders.get(k).push({f,path});}
+    else top.push(f);
+  }
+  const fileEntry=(f,path)=>({path,read:async m=>{if(f.source.size>m)throw new ImportError('toolarge','File is larger than '+Math.round(m/1048576)+' MB.');return f.source.read(0,f.source.size);}});
+  for(const f of top){
+    if(opt.stop&&opt.stop()){res.stopped=true;break;}
+    let head;
+    try{head=await f.source.read(0,Math.min(f.source.size,1024));}catch(e){res.rejected.push({code:'unreadable',reason:'Could not read this file.',path:f.name,name:f.name,pack:'',canForce:false});continue;}
+    const type=sniffType(head,f.name),ext=extOf(f.name);
+    if(type==='zip'||(!type&&ARCH_EXT.has(ext)&&f.source.size>=22)){
+      try{
+        const z=await openZip(f.source);
+        await processArchive({entries:z.entries.map(e=>({path:e.name,crc:e.crc,read:m=>z.read(e,m)}))},{opt,res,label:stemOf(f.name),depth:0});
+      }catch(err){res.rejected.push({code:err.code==='badzip'?'badzip':err.code==='encrypted'?'encrypted':'unreadable',reason:err.message||'Could not open this zip.',path:f.name,name:f.name,pack:'',canForce:false});}
+    }else if(['rar','7z','gzip','tar'].includes(type)||['rar','7z','tar','gz','tgz'].includes(ext)){
+      res.rejected.push({code:'archive',reason:'.'+ext+' archives cannot be opened here. Unpack or re-zip it as a .zip first.',path:f.name,name:f.name,pack:'',canForce:false});
+    }else if(type||IMG_EXT.has(ext)){
+      loose.push(fileEntry(f,f.name));
+    }else{
+      res.rejected.push({code:'unsupported',reason:'“'+f.name+'” is not an image or a supported archive.',path:f.name,name:f.name,pack:'',canForce:false});
+    }
+  }
+  if(loose.length&&!res.stopped)await processArchive({entries:loose},{opt,res,label:'Loose images',depth:0});
+  for(const[name,list]of folders){
+    if(res.stopped||(opt.stop&&opt.stop())){res.stopped=true;break;}
+    await processArchive({entries:list.map(({f,path})=>fileEntry(f,path))},{opt,res,label:name,depth:0});
+  }
+  return res;
+}
+/* Retry rejected files with the content rules switched off (still needs a readable, square image). */
+async function forceImport(records,opt){
+  opt.known=opt.known||new Map();
+  const res={accepted:[],matched:[],rejected:[],ignored:0,duplicates:0,seen:0,stopped:false};
+  let n=0;
+  for(const r of records){
+    if(opt.stop&&opt.stop()){res.stopped=true;break;}
+    if(!r.canForce||!r.E){res.rejected.push(r);continue;}
+    record(res,await evalEntry(r.E,true,opt));
+    ++n;await breathe();
+  }
+  return res;
+}
+
+const api={LIMITS,GROUPS,importFiles,forceImport,memSource,blobSource,openZip,inflateSync,inflateAny,crc32,sniffType,imageInfo,decodeTGA,
+  scanPath,scanLoose,nameRule,checkDims,classifyPixels,makeThumb,firstFrame,tgaPlausible};
+root.ImportCore=api;
+if(typeof module!=='undefined'&&module.exports)module.exports=api;
+})(typeof self!=='undefined'?self:globalThis);
+/*IMPORT-END*/
+</script>
+
+<script>
+(function(){
+'use strict';
+const MAX=300,SLOTS=3,LETTERS=['A','B','C'],PREVIEW_MAX=128,MAXJOBS=12,COMBINED_LIMIT=200*1024*1024;
+const $=s=>document.querySelector(s);
+const el=(t,c,txt)=>{const e=document.createElement(t);if(c)e.className=c;if(txt!=null)e.textContent=txt;return e;};
+
+const SETTINGS=[
+ {group:'Pattern',items:[
+  {key:'layout',label:'Keep original layout',def:85,hint:'100 keeps the original’s bricks, planks or cracks exactly where they are. Lower slides those shapes toward the new texture’s layout: lines move, thicken or thin. Colors are never cross-faded. Works best near either end when the two layouts are very different.'},
+  {key:'grain',label:'Keep original grain',def:70,hint:'100 keeps the original’s pixel-level texture inside every part. Lower brings in the new texture’s grain instead.'}]},
+ {group:'Look',items:[
+  {key:'chroma',label:'New color',def:65,hint:'How far each part’s hue and saturation move to those of the matching part in the new texture. 0 keeps the original’s colors.'},
+  {key:'tone',label:'New brightness',def:45,hint:'How far each part’s lightness and contrast move to those of the matching part in the new texture.'},
+  {key:'filter',label:'Ignore stray colors',def:10,hint:'Colors that cover only a tiny part of the new texture are treated as stray and ignored instead of copied. 0 keeps even the smallest.'}]},
+ {group:'New features',items:[
+  {key:'features',label:'Add new features',def:60,hint:'Things the new texture has and the original doesn’t (moss, cracks, ore) arrive as whole patches, only where the new texture has them and only on parts they sit on. Lower gives fewer, smaller patches. They keep the new texture’s own colors.'}]},
+ {group:'Seams',items:[
+  {key:'seam',label:'Seamless blending',def:0,hint:'Smooths brightness and color jumps across the tile border so side-by-side blocks hide their edges. Turn it off per texture in the list for blocks like bricks.'}]}
+];
+const DEF={};for(const g of SETTINGS)for(const it of g.items)DEF[it.key]=it.def;
+const BUILTIN={
+  'Gentle recolor':{layout:100,grain:90,chroma:60,tone:40,filter:10,features:0,seam:0},
+  'Style swap':{layout:40,grain:25,chroma:100,tone:100,filter:10,features:100,seam:0},
+  'Add details only':{layout:100,grain:100,chroma:0,tone:0,filter:10,features:100,seam:0},
+  'Seamless terrain':{layout:100,grain:70,chroma:80,tone:60,filter:10,features:40,seam:70}
+};
+const COMBINE_HINTS={
+  mix:'The targets share the job in proportion to their influence. Under 100% in total, the rest stays original.',
+  stack:'Each target’s changes are added on top: color shifts add up and every target’s new features appear.',
+  strongest:'For each part of the original, only the target that changes it most is used, so every part keeps one clear source.'
+};
+
+/* ---------- jobs ---------- */
+let jobs=[],J=null,jobSeq=0,running=false,idc=0,stopFlag=false,armedDelete=0;
+const cache=new Map();
+function newJob(from){
+  const j={id:++jobSeq,name:'Job '+(jobSeq),sources:[],targets:[[],[],[]],pairMode:'order',set:{...DEF},
+           slotW:[100,100,100],slotRole:['all','all','all'],combine:'mix',alpha:'keep',pairs:[],selected:null,sorted:[[],[],[]]};
+  if(from){
+    j.name=from.name+' copy';j.sources=from.sources.slice();j.targets=from.targets.map(l=>l.slice());j.pairMode=from.pairMode;
+    j.set={...from.set};j.slotW=from.slotW.slice();j.slotRole=from.slotRole.slice();j.combine=from.combine;j.alpha=from.alpha;
+    j.pairs=from.pairs.map(p=>({src:p.src,seam:p.seam,tgts:p.tgts.slice()}));
+    j.selected=j.pairs[from.pairs.indexOf(from.selected)]||null;j.sorted=from.sorted.map(l=>l.slice());
+  }
+  return j;
+}
+const hasTarget=p=>p.tgts.some(Boolean);
+const readyCount=j=>j.pairs.filter(hasTarget).length;
+const blendVisible=j=>j.targets[1].length>0||j.targets[2].length>0;
+const slotShown=(j,k)=>k===0||j.targets[k].length>0;
+const slotWeight=(j,k)=>blendVisible(j)?j.slotW[k]/100:1;
+const slotRole=(j,k)=>blendVisible(j)?j.slotRole[k]:'all';
+const blendMode=j=>blendVisible(j)?j.combine:'mix';
+function optsFor(j,p){
+  const s=j.set;
+  return{layout:s.layout/100,grain:s.grain/100,chroma:s.chroma/100,tone:s.tone/100,filter:s.filter/100,features:s.features/100,
+         seam:p.seam?s.seam/100:0,alpha:j.alpha,mode:blendMode(j)};
+}
+
+/* ---------- settings UI (bound to the active job) ---------- */
+const sbox=$('#settings');
+for(const g of SETTINGS){
+  const d=el('div','grp');d.append(el('h3',null,g.group));
+  for(const it of g.items){
+    const w=el('div','sl');
+    const top=el('div','top');const out=el('output',null,String(it.def));
+    top.append(el('span',null,it.label),out);
+    const inp=document.createElement('input');inp.type='range';inp.min=0;inp.max=100;inp.value=it.def;inp.id='s_'+it.key;
+    inp.addEventListener('input',()=>{out.textContent=inp.value;J.set[it.key]=+inp.value;schedulePreview();});
+    w.append(top,inp,el('small',null,it.hint));
+    d.append(w);it.out=out;it.inp=inp;
+  }
+  sbox.append(d);
+}
+function showSettings(){for(const g of SETTINGS)for(const it of g.items){it.inp.value=J.set[it.key];it.out.textContent=J.set[it.key];}}
+$('#reset').addEventListener('click',()=>{
+  J.set={...DEF};J.slotW=[100,100,100];J.slotRole=['all','all','all'];J.combine='mix';
+  showSettings();showSlots();$('#combine').value='mix';updateHint();schedulePreview();
+});
+$('#alphaMode').addEventListener('change',()=>{J.alpha=$('#alphaMode').value;schedulePreview();});
+$('#pairMode').addEventListener('change',()=>{J.pairMode=$('#pairMode').value;rebuildPairs(J);renderPairs();schedulePreview();});
+$('#jobName').addEventListener('input',()=>{J.name=$('#jobName').value;renderJobBar();});
+
+/* ---------- target blend UI ---------- */
+const slotCtl=[];
+for(let k=0;k<SLOTS;k++){
+  const w=el('div','slot'),top=el('div','top');
+  const out=el('output',null,'100');
+  const role=document.createElement('select');role.style.flex='1';
+  [['all','Takes everything'],['color','Color only'],['layout','Layout only']].forEach(([v,t])=>role.add(new Option(t,v)));
+  top.append(el('span',null,'Target '+LETTERS[k]),role,out);
+  const inp=document.createElement('input');inp.type='range';inp.min=0;inp.max=100;inp.value=100;
+  inp.addEventListener('input',()=>{out.textContent=inp.value;J.slotW[k]=+inp.value;schedulePreview();});
+  role.addEventListener('change',()=>{J.slotRole[k]=role.value;schedulePreview();});
+  w.append(top,inp);$('#slots').append(w);
+  slotCtl.push({wrap:w,inp,out,role});
+}
+function showSlots(){for(let k=0;k<SLOTS;k++){slotCtl[k].inp.value=J.slotW[k];slotCtl[k].out.textContent=J.slotW[k];slotCtl[k].role.value=J.slotRole[k];}}
+function updateHint(){$('#combineHint').textContent=COMBINE_HINTS[$('#combine').value]+' “Color only” takes only hue and saturation. “Layout only” takes shapes, brightness, grain and the brightness of new features.';}
+$('#combine').addEventListener('change',()=>{J.combine=$('#combine').value;updateHint();schedulePreview();});
+function refreshSlotUI(){
+  for(let k=0;k<SLOTS;k++)slotCtl[k].wrap.style.display=slotShown(J,k)?'':'none';
+  $('#blendCard').style.display=blendVisible(J)?'':'none';
+}
+
+/* ---------- presets (standards you can apply to any job) ---------- */
+const PKEY='texture_shift_presets_v1';
+function savedPresets(){try{const v=JSON.parse(localStorage.getItem(PKEY)||'{}');return v&&typeof v==='object'?v:{};}catch(e){return null;}}
+function storePresets(o){try{localStorage.setItem(PKEY,JSON.stringify(o));return true;}catch(e){return false;}}
+function cleanPreset(p){const o={};for(const k in DEF){const v=+p[k];o[k]=Number.isFinite(v)?Math.min(100,Math.max(0,Math.round(v))):DEF[k];}return o;}
+function fillPresetSelect(keep){
+  const s=$('#presetSel');s.textContent='';
+  s.add(new Option('Presets…',''));
+  const g1=document.createElement('optgroup');g1.label='Built-in';
+  for(const k in BUILTIN)g1.append(new Option(k,'b:'+k));
+  s.append(g1);
+  const sp=savedPresets();
+  if(sp&&Object.keys(sp).length){const g2=document.createElement('optgroup');g2.label='Saved by you';for(const k of Object.keys(sp))g2.append(new Option(k,'u:'+k));s.append(g2);}
+  s.value=keep||'';
+  $('#presetDel').disabled=!(s.value||'').startsWith('u:');
+}
+$('#presetSel').addEventListener('change',()=>{
+  const v=$('#presetSel').value;$('#presetDel').disabled=!v.startsWith('u:');
+  if(!v)return;
+  const p=v.startsWith('b:')?BUILTIN[v.slice(2)]:(savedPresets()||{})[v.slice(2)];
+  if(!p)return;
+  J.set=cleanPreset(p);showSettings();schedulePreview();
+  $('#presetMsg').textContent='Applied “'+v.slice(2)+'” to '+J.name+'.';
+});
+$('#presetSave').addEventListener('click',()=>{
+  const name=$('#presetName').value.trim().slice(0,30);
+  if(!name){$('#presetMsg').textContent='Type a name for the preset first.';return;}
+  const sp=savedPresets();
+  if(sp===null){$('#presetMsg').textContent='This browser is not allowing saved presets here.';return;}
+  sp[name]={...J.set};
+  if(!storePresets(sp)){$('#presetMsg').textContent='This browser is not allowing saved presets here.';return;}
+  $('#presetName').value='';fillPresetSelect('u:'+name);$('#presetMsg').textContent='Saved “'+name+'”. Pick it from the list on any job.';
+});
+$('#presetDel').addEventListener('click',()=>{
+  const v=$('#presetSel').value;if(!v.startsWith('u:'))return;
+  const sp=savedPresets();if(!sp)return;delete sp[v.slice(2)];storePresets(sp);fillPresetSelect('');$('#presetMsg').textContent='Deleted “'+v.slice(2)+'”.';
+});
+
+/* ---------- job bar ---------- */
+function renderJobBar(){
+  const bar=$('#jobtabs');bar.textContent='';
+  for(const j of jobs){
+    const b=el('button','jtab'+(j===J?' on':''));b.type='button';
+    b.append(el('b',null,j.name||'Untitled'),el('span',null,readyCount(j)+' ready'));
+    b.addEventListener('click',()=>switchJob(j));
+    bar.append(b);
+  }
+  $('#jobNew').disabled=running||jobs.length>=MAXJOBS;
+  $('#jobDup').disabled=running||jobs.length>=MAXJOBS;
+  $('#jobDel').disabled=running||jobs.length<2;
+  $('#jobDel').textContent=armedDelete?'Tap again to delete':'Delete';
+  const jl=$('#jobLabel');if(jl)jl.textContent=(J&&J.name)||'Untitled';
+  updateStart();
+}
+function switchJob(j){
+  if(running||j===J)return;
+  armedDelete=0;J=j;showJob();
+}
+function showJob(){
+  showSettings();showSlots();
+  $('#combine').value=J.combine;updateHint();
+  $('#alphaMode').value=J.alpha;$('#pairMode').value=J.pairMode;$('#jobName').value=J.name;
+  $('#nSrc').textContent=J.sources.length+' selected';
+  for(let k=0;k<SLOTS;k++)$('#nT'+k).textContent=J.targets[k].length+' selected';
+  msg('');
+  refreshSlotUI();renderPairs();renderJobBar();schedulePreview();
+}
+$('#jobNew').addEventListener('click',()=>{if(running||jobs.length>=MAXJOBS)return;const j=newJob();jobs.push(j);armedDelete=0;J=j;showJob();});
+$('#jobDup').addEventListener('click',()=>{if(running||jobs.length>=MAXJOBS)return;const j=newJob(J);jobs.splice(jobs.indexOf(J)+1,0,j);armedDelete=0;J=j;showJob();});
+$('#jobDel').addEventListener('click',()=>{
+  if(running||jobs.length<2)return;
+  if(!armedDelete){armedDelete=1;renderJobBar();setTimeout(()=>{if(armedDelete){armedDelete=0;renderJobBar();}},3000);return;}
+  armedDelete=0;const i=jobs.indexOf(J);jobs.splice(i,1);J=jobs[Math.min(i,jobs.length-1)];showJob();
+});
+
+/* ---------- image decoding (the import filter calls this for png / jpg / webp / bmp) ---------- */
+const decCanvas=document.createElement('canvas');
+const decCtx=decCanvas.getContext('2d',{willReadFrequently:true});
+async function decodeBrowser(bytes,type){
+  const mime={png:'image/png',jpeg:'image/jpeg',webp:'image/webp',bmp:'image/bmp'}[type]||'application/octet-stream';
+  const blob=new Blob([bytes],{type:mime});
+  let src=null,w=0,h=0,bmp=null;
+  if(typeof createImageBitmap==='function'){
+    try{bmp=await createImageBitmap(blob,{premultiplyAlpha:'none',colorSpaceConversion:'none'});}
+    catch(e){try{bmp=await createImageBitmap(blob);}catch(e2){bmp=null;}}
+  }
+  if(bmp){src=bmp;w=bmp.width;h=bmp.height;}
+  else{
+    const url=URL.createObjectURL(blob);
+    try{
+      const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('this browser could not open it'));i.src=url;});
+      src=img;w=img.naturalWidth;h=img.naturalHeight;
+    }finally{URL.revokeObjectURL(url);}
+  }
+  decCanvas.width=w;decCanvas.height=h;
+  decCtx.clearRect(0,0,w,h);decCtx.drawImage(src,0,0);
+  const d=decCtx.getImageData(0,0,w,h);
+  if(bmp&&bmp.close)bmp.close();
+  return{w,h,data:d.data};
+}
+
+/* ---------- the library ---------- */
+const PAGE=150;
+const lib={items:[],byUid:new Map(),known:new Map(),sel:new Set(),q:'',pack:'',size:'',shown:PAGE,rejected:[],importing:false,stop:false,view:[],dirty:true,last:null};
+const fmt=n=>n.toLocaleString();
+const plural=(n,w)=>fmt(n)+' '+w+(n===1?'':'s');
+function libMsg(t,err){const m=$('#libMsg');m.textContent=t||'';m.className=err?'err':'';}
+function thumbURL(it){
+  const t=it.thumb.t,c=document.createElement('canvas');c.width=c.height=t;
+  c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(it.thumb.data),t,t),0,0);
+  return c.toDataURL();
+}
+function entryFor(it){
+  if(!it.entry)it.entry={id:it.uid,name:it.name,w:it.w,h:it.h,thumb:thumbURL(it),item:it};
+  return it.entry;
+}
+function addItems(list){
+  for(const it of list){if(lib.byUid.has(it.uid))continue;lib.items.push(it);lib.byUid.set(it.uid,it);}
+  lib.dirty=true;
+}
+function toInputs(files){
+  return files.map(f=>({name:f.name,path:f.webkitRelativePath||'',source:ImportCore.blobSource(f)}));
+}
+async function runImport(files,label){
+  if(lib.importing){libMsg('An import is already running. Wait for it to finish, or stop it.',true);return null;}
+  if(!files.length)return null;
+  lib.importing=true;lib.stop=false;
+  const bar=$('#libBar');bar.classList.add('busy');$('#libStop').style.display='';
+  libMsg('Reading '+(files.length===1?files[0].name:plural(files.length,'file'))+'…');
+  let res;
+  const opt={decode:decodeBrowser,known:lib.known,stop:()=>lib.stop,
+    onProgress:p=>libMsg('Reading '+p.label+'… '+fmt(p.seen)+' images checked · '+fmt(p.accepted)+' added · '+fmt(p.rejected)+' rejected')};
+  try{res=await ImportCore.importFiles(toInputs(files),opt);}
+  catch(e){libMsg('The import failed: '+(e&&e.message||e),true);res=null;}
+  lib.importing=false;bar.classList.remove('busy');$('#libStop').style.display='none';
+  if(!res)return null;
+  addItems(res.accepted);
+  lib.rejected=res.rejected;
+  lib.last={added:res.accepted.length,dups:res.duplicates,rej:res.rejected.length,ignored:res.ignored,stopped:res.stopped,files:files.length};
+  summarize();
+  renderRejected(res.rejected.length>0&&!res.accepted.length&&!res.matched.length);
+  renderLib();
+  return res;
+}
+function summarize(){
+  const s=lib.last;if(!s)return;
+  const bits=[];
+  if(s.added)bits.push('Added '+plural(s.added,'texture'));
+  if(s.dups)bits.push(plural(s.dups,'texture')+' already in the library');
+  if(s.rej)bits.push('rejected '+fmt(s.rej)+(s.added||s.dups?' (see below)':''));
+  if(s.ignored)bits.push('ignored '+fmt(s.ignored)+' other file'+(s.ignored===1?'':'s')+' (sounds, text, data)');
+  let t=bits.length?bits.join(' · ')+'.':'No images were found in '+(s.files===1?'that file':'those files')+'.';
+  t=t.charAt(0).toUpperCase()+t.slice(1);
+  if(!s.added&&!s.dups&&s.rej)t='Nothing was imported. '+t;
+  if(s.stopped)t='Stopped. '+t;
+  libMsg(t,!s.added&&!s.dups&&s.rej>0);
+}
+$('#libStop').addEventListener('click',()=>{lib.stop=true;libMsg('Stopping…');});
+
+/* ----- rejected files, grouped by reason ----- */
+const VARIES=new Set(['notsquare','badsize','toolarge','toosmall','unreadable','unsupported','archive','badzip','encrypted','normalmap','transparent']);
+function renderRejected(open){
+  const box=$('#rejBox'),was=box.querySelector('details'),keepOpen=open||(was&&was.open&&!box.dataset.fresh);
+  box.textContent='';delete box.dataset.fresh;
+  const rej=lib.rejected;
+  if(!rej.length){box.style.display='none';return;}
+  box.style.display='';
+  const d=document.createElement('details');d.open=!!keepOpen;
+  d.append(el('summary',null,'Rejected: '+plural(rej.length,'file')));
+  const groups=new Map();
+  for(const r of rej){if(!groups.has(r.code))groups.set(r.code,[]);groups.get(r.code).push(r);}
+  const G=ImportCore.GROUPS;
+  for(const[code,list]of[...groups].sort((a,b)=>b[1].length-a[1].length)){
+    const g=document.createElement('details');g.className='rg';
+    const s=document.createElement('summary');s.append(el('b',null,(G[code]||{title:code}).title),el('span',null,fmt(list.length)));g.append(s);
+    if(G[code]&&G[code].hint)g.append(el('div','hint',G[code].hint));
+    const ul=document.createElement('ul');
+    const showReason=VARIES.has(code)||list.length<=6;
+    for(const r of list.slice(0,80)){
+      const li=document.createElement('li');
+      li.append(el('b',null,r.name||r.path));
+      if(r.pack&&showReason===false)li.append(document.createTextNode(' · '+r.pack));
+      if(showReason)li.append(document.createTextNode(' — '+r.reason));
+      ul.append(li);
+    }
+    if(list.length>80)ul.append(el('li',null,'…and '+fmt(list.length-80)+' more'));
+    g.append(ul);
+    const can=list.filter(r=>r.canForce);
+    if(can.length){
+      const b=el('button','ghost','Import '+(can.length===list.length?'':plural(can.length,'one')+' ')+'anyway');
+      b.type='button';
+      b.addEventListener('click',()=>forceRejected(can,b));
+      g.append(b);
+    }
+    d.append(g);
+  }
+  box.append(d);
+}
+async function forceRejected(list,btn){
+  if(lib.importing){libMsg('An import is already running.',true);return;}
+  lib.importing=true;lib.stop=false;btn.disabled=true;
+  $('#libBar').classList.add('busy');$('#libStop').style.display='';libMsg('Importing '+plural(list.length,'file')+' anyway…');
+  let res;
+  try{res=await ImportCore.forceImport(list,{decode:decodeBrowser,known:lib.known,stop:()=>lib.stop});}
+  catch(e){libMsg('The import failed: '+(e&&e.message||e),true);res=null;}
+  lib.importing=false;$('#libBar').classList.remove('busy');$('#libStop').style.display='none';
+  if(!res){btn.disabled=false;return;}
+  addItems(res.accepted);
+  const gone=new Set(list);
+  lib.rejected=lib.rejected.filter(r=>!gone.has(r)).concat(res.rejected);
+  const still=res.rejected.length;
+  libMsg('Imported '+plural(res.accepted.length+res.matched.length,'texture')+' anyway.'+(still?' '+plural(still,'file')+' could not be used (not square, damaged or empty).':''),false);
+  renderRejected(true);renderLib();
+}
+
+/* ----- browsing ----- */
+const natCmp=(a,b)=>a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'});
+function sortedItems(){
+  if(lib.dirty){lib.items.sort((a,b)=>natCmp(a.pack,b.pack)||natCmp(a.name,b.name));lib.dirty=false;lib.packs=null;}
+  return lib.items;
+}
+function fillFilters(){
+  const items=lib.items;
+  const packs=new Map(),sizes=new Map();
+  for(const it of items){packs.set(it.pack,(packs.get(it.pack)||0)+1);sizes.set(it.w,(sizes.get(it.w)||0)+1);}
+  const ps=$('#libPack'),ss=$('#libSize');
+  ps.textContent='';ps.add(new Option('All packs ('+fmt(items.length)+')',''));
+  for(const[k,v]of[...packs].sort((a,b)=>natCmp(a[0],b[0])))ps.add(new Option(k+' ('+fmt(v)+')',k));
+  if(!packs.has(lib.pack))lib.pack='';
+  ps.value=lib.pack;
+  ss.textContent='';ss.add(new Option('All sizes',''));
+  for(const[k]of[...sizes].sort((a,b)=>a[0]-b[0]))ss.add(new Option(k+'×'+k+' ('+fmt(sizes.get(k))+')',String(k)));
+  if(!sizes.has(+lib.size))lib.size='';
+  ss.value=lib.size;
+}
+function applyFilter(){
+  const q=lib.q.trim().toLowerCase(),sz=lib.size?+lib.size:0;
+  lib.view=sortedItems().filter(it=>(!lib.pack||it.pack===lib.pack)&&(!sz||it.w===sz)&&(!q||it.stem.toLowerCase().includes(q)||it.pack.toLowerCase().includes(q)));
+}
+function tileFor(it){
+  const d=el('div','tile'+(lib.sel.has(it.uid)?' on':''));
+  d.setAttribute('role','button');d.title=it.name;
+  const t=it.thumb.t,c=document.createElement('canvas');c.width=c.height=t;
+  c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(it.thumb.data),t,t),0,0);
+  d.append(c);
+  if(it.animated)d.append(el('span','tag','▶'));
+  d.addEventListener('click',()=>{
+    if(lib.sel.has(it.uid)){lib.sel.delete(it.uid);d.classList.remove('on');}else{lib.sel.add(it.uid);d.classList.add('on');}
+    $('#libCaption').textContent=it.stem+' · '+it.pack+' · '+it.w+'×'+it.h+(it.animated?' · animated, first frame is used':'')+(it.translucent?' · translucent':'')+(it.forced?' · imported anyway':'');
+    updateSelection();
+  });
+  return d;
+}
+function renderLib(){
+  const has=lib.items.length>0;
+  $('#libBrowse').style.display=has?'':'none';
+  if(!has)return;
+  fillFilters();applyFilter();
+  const grid=$('#libGrid');grid.textContent='';
+  const n=Math.min(lib.shown,lib.view.length),frag=document.createDocumentFragment();
+  for(let i=0;i<n;i++)frag.append(tileFor(lib.view[i]));
+  if(!lib.view.length)frag.append(el('div','emptyg','Nothing matches that search.'));
+  if(lib.view.length>n){
+    const b=el('button','ghost more','Show '+Math.min(PAGE,lib.view.length-n)+' more ('+fmt(lib.view.length-n)+' left)');b.type='button';
+    b.addEventListener('click',()=>{lib.shown+=PAGE;const top=grid.scrollTop;renderLib();grid.scrollTop=top;});
+    frag.append(b);
+  }
+  grid.append(frag);
+  updateSelection();
+}
+function updateSelection(){
+  const n=lib.sel.size;
+  $('#selCount').textContent=fmt(n)+' selected · '+fmt(lib.view.length)+' shown';
+  $('#selAll').textContent='Select all '+fmt(lib.view.length);
+  $('#selAll').disabled=!lib.view.length;
+  for(const id of['addSrc','addT0','addT1','addT2','libRemove'])$('#'+id).disabled=!n;
+}
+let qTimer=0;
+$('#libQ').addEventListener('input',()=>{clearTimeout(qTimer);qTimer=setTimeout(()=>{lib.q=$('#libQ').value;lib.shown=PAGE;renderLib();},150);});
+$('#libPack').addEventListener('change',()=>{lib.pack=$('#libPack').value;lib.shown=PAGE;renderLib();});
+$('#libSize').addEventListener('change',()=>{lib.size=$('#libSize').value;lib.shown=PAGE;renderLib();});
+$('#selAll').addEventListener('click',()=>{for(const it of lib.view)lib.sel.add(it.uid);lib.shown=Math.max(lib.shown,PAGE);renderLib();});
+$('#selNone').addEventListener('click',()=>{lib.sel.clear();renderLib();});
+$('#libRemove').addEventListener('click',()=>{
+  for(const id of lib.sel){const it=lib.byUid.get(id);if(it){lib.known.delete(it.key);lib.byUid.delete(id);}}
+  lib.items=lib.items.filter(it=>lib.byUid.has(it.uid));lib.sel.clear();lib.dirty=true;renderLib();libMsg('Removed from the library. Jobs that already use them keep them.');
+});
+let armedClear=0;
+$('#libClear').addEventListener('click',()=>{
+  const b=$('#libClear');
+  if(!armedClear){armedClear=1;b.textContent='Tap again to empty';setTimeout(()=>{armedClear=0;b.textContent='Empty the library';},3000);return;}
+  armedClear=0;b.textContent='Empty the library';
+  lib.items=[];lib.byUid.clear();lib.known.clear();lib.sel.clear();lib.rejected=[];lib.dirty=true;lib.shown=PAGE;
+  renderRejected(false);renderLib();libMsg('Library emptied. Jobs that already use textures keep them.');
+});
+
+/* ----- send to the current job ----- */
+function setList(j,which){return which==='sources'?j.sources:j.targets[which];}
+function addToJob(which){
+  const j=J,cur=setList(j,which),have=new Set(cur.map(e=>e.id));
+  const items=lib.items.filter(it=>lib.sel.has(it.uid));
+  let added=0,over=0;
+  for(const it of items){
+    if(have.has(it.uid))continue;
+    if(cur.length>=MAX){over++;continue;}
+    cur.push(entryFor(it));have.add(it.uid);added++;
+  }
+  rebuildPairs(j);
+  $(which==='sources'?'#nSrc':'#nT'+which).textContent=cur.length+' selected';
+  refreshSlotUI();renderPairs();schedulePreview();renderJobBar();
+  const label=which==='sources'?'the textures to change':'Toward '+LETTERS[which];
+  msg('Added '+plural(added,'texture')+' to '+label+' in '+j.name+'.'+(over?' '+plural(over,'texture')+' did not fit: a set holds up to '+MAX+'.':'')+(items.length-added-over?' '+plural(items.length-added-over,'texture')+' were already there.':''),over>0);
+  libMsg('');
+}
+$('#addSrc').addEventListener('click',()=>addToJob('sources'));
+for(let k=0;k<SLOTS;k++)$('#addT'+k).addEventListener('click',()=>addToJob(k));
+function clearSet(which){
+  if(running)return;
+  if(which==='sources')J.sources=[];else J.targets[which]=[];
+  rebuildPairs(J);
+  $(which==='sources'?'#nSrc':'#nT'+which).textContent='0 selected';
+  refreshSlotUI();renderPairs();schedulePreview();renderJobBar();
+}
+$('#clrSrc').addEventListener('click',()=>clearSet('sources'));
+for(let k=0;k<SLOTS;k++)$('#clrT'+k).addEventListener('click',()=>clearSet(k));
+
+/* ----- the file boxes on a job go through the same filter ----- */
+async function importInto(fileList,which,input){
+  const j=J,files=[...fileList];
+  if(input)input.value='';
+  if(!files.length)return;
+  const res=await runImport(files);
+  if(!res)return;
+  const seen=new Set(),all=[];
+  for(const it of[...res.accepted,...res.matched])if(!seen.has(it.uid)){seen.add(it.uid);all.push(it);}
+  let note='';
+  let use=all;
+  if(use.length>MAX){note=' Only the first '+MAX+' were used.';use=use.slice(0,MAX);}
+  const list=use.map(entryFor);
+  if(which==='sources')j.sources=list;else j.targets[which]=list;
+  rebuildPairs(j);
+  if(j===J){
+    $(which==='sources'?'#nSrc':'#nT'+which).textContent=list.length+' selected';
+    const rj=res.rejected.length;
+    msg((list.length?'Using '+plural(list.length,'texture')+'.':'Nothing usable in that selection.')+(rj?' '+plural(rj,'file')+' rejected: open “Rejected” in the Library above for the reasons.':'')+note,!list.length);
+    refreshSlotUI();renderPairs();schedulePreview();
+  }
+  renderJobBar();
+}
+$('#fSrc').addEventListener('change',e=>importInto(e.target.files,'sources',e.target));
+for(let k=0;k<SLOTS;k++)$('#fT'+k).addEventListener('change',e=>importInto(e.target.files,k,e.target));
+$('#fLib').addEventListener('change',e=>{const f=[...e.target.files];e.target.value='';runImport(f);});
+$('#fLibDir').addEventListener('change',e=>{const f=[...e.target.files];e.target.value='';runImport(f);});
+const libCard=$('#libCard');
+libCard.addEventListener('dragover',e=>{if(e.dataTransfer&&[...e.dataTransfer.types||[]].includes('Files'))e.preventDefault();});
+libCard.addEventListener('drop',e=>{if(!e.dataTransfer||!e.dataTransfer.files.length)return;e.preventDefault();runImport([...e.dataTransfer.files]);});
+
+/* ---------- reading pixels of a library texture (resized when a pair needs a common size) ---------- */
+const baseCache=new Map();
+async function baseData(entry){
+  if(baseCache.has(entry.id)){const v=baseCache.get(entry.id);baseCache.delete(entry.id);baseCache.set(entry.id,v);return v;}
+  const r=await entry.item.load();
+  const d=new ImageData(new Uint8ClampedArray(r.data),r.w,r.h);
+  baseCache.set(entry.id,d);if(baseCache.size>32)baseCache.delete(baseCache.keys().next().value);
+  return d;
+}
+async function readData(entry,tw,th){
+  const key=entry.id+':'+(tw||0)+'x'+(th||0);
+  if(cache.has(key))return cache.get(key);
+  const b=await baseData(entry),w=tw||b.width,h=th||b.height;
+  let d=b;
+  if(w!==b.width||h!==b.height){
+    const c0=document.createElement('canvas');c0.width=b.width;c0.height=b.height;c0.getContext('2d').putImageData(b,0,0);
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    const x=c.getContext('2d',{willReadFrequently:true});x.imageSmoothingEnabled=false;x.drawImage(c0,0,0,w,h);
+    d=x.getImageData(0,0,w,h);
+  }
+  cache.set(key,d);if(cache.size>24)cache.delete(cache.keys().next().value);
+  return d;
+}
+const natural=(a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true,sensitivity:'base'});
+const baseName=n=>n.replace(/\.[^.]+$/,'').toLowerCase();
+function msg(t,err){const m=$('#msg');m.textContent=t||'';m.className=err?'err':'';}
+
+/* ---------- pairs ---------- */
+function rebuildPairs(j){
+  const keepSeam=new Map((j.pairs||[]).map(p=>[p.src.id,p.seam]));
+  const S=[...j.sources].sort(natural);
+  j.sorted=j.targets.map(l=>[...l].sort(natural));
+  const byName=j.pairMode==='name';
+  const maps=j.sorted.map(l=>new Map(l.map(t=>[baseName(t.name),t])));
+  j.pairs=S.map((s,i)=>({src:s,seam:keepSeam.has(s.id)?keepSeam.get(s.id):true,tgts:[0,1,2].map(k=>byName?(maps[k].get(baseName(s.name))||null):(j.sorted[k][i]||null))}));
+  j.selected=j.pairs.find(hasTarget)||j.pairs[0]||null;
+}
+function thumbImg(entry){
+  if(!entry)return el('div','ph');
+  const i=new Image();i.src=entry.thumb;i.alt='';return i;
+}
+function renderPairs(){
+  const box=$('#pairs');box.textContent='';
+  if(!J.pairs.length){box.append(el('div','empty','Pick the textures to change, and at least one target set.'));updateStart();return;}
+  J.pairs.forEach(p=>{
+    const row=el('div','row'+(p===J.selected?' sel':''));
+    const nm=el('div','nm',p.src.name);nm.title=p.src.name;
+    const tg=el('div','tg');
+    for(let k=0;k<SLOTS;k++){
+      if(!slotShown(J,k))continue;
+      const tc=el('div','tc');
+      const holder=el('div');holder.style.display='contents';
+      holder.append(thumbImg(p.tgts[k]));
+      const sel=document.createElement('select');
+      sel.add(new Option(p.tgts[k]?p.tgts[k].name:'— none —','cur'));
+      const fill=()=>{
+        if(sel.dataset.full)return;sel.dataset.full='1';sel.textContent='';
+        sel.add(new Option('— none —',''));
+        J.sorted[k].forEach((t,i)=>sel.add(new Option(t.name,String(i))));
+        sel.selectedIndex=p.tgts[k]?J.sorted[k].indexOf(p.tgts[k])+1:0;
+      };
+      sel.addEventListener('pointerdown',fill);sel.addEventListener('focus',fill);
+      sel.addEventListener('click',e=>e.stopPropagation());
+      sel.addEventListener('change',()=>{
+        if(sel.value==='cur')return;
+        p.tgts[k]=sel.value===''?null:J.sorted[k][+sel.value];
+        holder.textContent='';holder.append(thumbImg(p.tgts[k]));
+        choose(p,row);renderJobBar();
+      });
+      tc.append(el('b',null,LETTERS[k]),holder,sel);
+      tg.append(tc);
+    }
+    const ctl=el('div','ctl');
+    const lab=el('label');const cb=document.createElement('input');cb.type='checkbox';cb.checked=p.seam;
+    cb.addEventListener('change',()=>{p.seam=cb.checked;if(J.selected===p)schedulePreview();});
+    cb.addEventListener('click',e=>e.stopPropagation());
+    lab.append(cb,document.createTextNode('Seamless blending on'));
+    lab.addEventListener('click',e=>e.stopPropagation());
+    const rm=el('button',null,'Remove');rm.type='button';
+    rm.addEventListener('click',e=>{
+      e.stopPropagation();
+      J.pairs.splice(J.pairs.indexOf(p),1);
+      if(J.selected===p)J.selected=J.pairs.find(hasTarget)||J.pairs[0]||null;
+      renderPairs();renderJobBar();schedulePreview();
+    });
+    ctl.append(lab,rm);
+    row.append(thumbImg(p.src),nm,tg,ctl);
+    row.addEventListener('click',()=>choose(p,row));
+    box.append(row);
+  });
+  updateStart();
+}
+function choose(p,row){
+  J.selected=p;
+  document.querySelectorAll('.row.sel').forEach(r=>r.classList.remove('sel'));
+  if(row)row.classList.add('sel');
+  schedulePreview();
+}
+function updateStart(){
+  const withWork=jobs.filter(j=>readyCount(j)>0);
+  const total=jobs.reduce((s,j)=>s+readyCount(j),0);
+  $('#start').disabled=running?false:!total;
+  $('#start').textContent=running?'Stop':(total?'Start ('+total+' texture'+(total===1?'':'s')+(withWork.length>1?' in '+withWork.length+' jobs':'')+')':'Start');
+  if(!running){
+    const un=jobs.reduce((s,j)=>s+j.pairs.length-readyCount(j),0);
+    $('#status').textContent=total?(total+' ready'+(withWork.length>1?' across '+withWork.length+' jobs':'')+(un?' · '+un+' without any target (will be skipped)':'')+'. Check each job, then press Start.'):'';
+  }
+}
+
+/* ---------- targets for one texture ---------- */
+async function targetsFor(j,p,S){
+  const list=[];
+  for(let k=0;k<SLOTS;k++){
+    const e=p.tgts[k];if(!e)continue;
+    const T=await readData(e,S.width,S.height);
+    list.push({data:T.data,weight:slotWeight(j,k),role:slotRole(j,k)});
+  }
+  return list;
+}
+
+/* ---------- what the tool found ---------- */
+function chip(rgb,text,cls){
+  const c=el('span','chip'+(cls?' '+cls:''));
+  const sw=el('i');sw.style.background='rgb('+rgb[0]+','+rgb[1]+','+rgb[2]+')';
+  c.append(sw,document.createTextNode(text));return c;
+}
+function renderFound(report){
+  const box=$('#found');box.textContent='';
+  if(!report){box.style.display='none';return;}
+  box.style.display='';
+  box.append(el('h3',null,'What it found'));
+  const r0=el('div','frow');r0.append(el('span','fl','Original'));
+  report.donor.forEach((p,i)=>r0.append(chip(p.rgb,(i+1)+' · '+Math.round(p.share*100)+'%')));
+  box.append(r0);
+  report.targets.forEach((t,k)=>{
+    const r=el('div','frow');r.append(el('span','fl','Target '+LETTERS[Math.min(k,2)]));
+    t.parts.forEach(p=>r.append(chip(p.rgb,Math.round(p.share*100)+'% '+(p.match>=0?'→ part '+(p.match+1):'→ new feature'),p.match>=0?'':'feat')));
+    box.append(r);
+  });
+  box.append(el('small',null,'Parts are the distinct materials in a texture (for example brick faces and mortar). Each part of the original is matched with one in the new texture; parts with no match become new features.'));
+}
+
+/* ---------- preview ---------- */
+let raf=0,seq=0;
+function schedulePreview(){cancelAnimationFrame(raf);raf=requestAnimationFrame(renderPreview);}
+function put(c,imgData){c.width=imgData.width;c.height=imgData.height;c.getContext('2d').putImageData(imgData,0,0);}
+function clearPreview(){for(const id of['#cS','#cT','#cR','#cX']){const c=$(id);c.width=c.width;}renderFound(null);}
+async function renderPreview(){
+  const my=++seq,j=J,p=j.selected;
+  if(!p||!hasTarget(p)){clearPreview();return;}
+  try{
+    let S=await readData(p.src);
+    if(Math.max(S.width,S.height)>PREVIEW_MAX){
+      const k=PREVIEW_MAX/Math.max(S.width,S.height);
+      S=await readData(p.src,Math.max(1,Math.round(S.width*k)),Math.max(1,Math.round(S.height*k)));
+    }
+    const tl=await targetsFor(j,p,S);
+    if(my!==seq)return;
+    const W=S.width,H=S.height;
+    const res=convertTexture(S.data,tl,W,H,optsFor(j,p));
+    const R=new ImageData(new Uint8ClampedArray(res.data),W,H);
+    put($('#cS'),S);put($('#cT'),new ImageData(new Uint8ClampedArray(tl[0].data),W,H));put($('#cR'),R);
+    const X=$('#cX');X.width=W*3;X.height=H*3;
+    const tmp=document.createElement('canvas');tmp.width=W;tmp.height=H;tmp.getContext('2d').putImageData(R,0,0);
+    const xc=X.getContext('2d');xc.imageSmoothingEnabled=false;
+    for(let y=0;y<3;y++)for(let x=0;x<3;x++)xc.drawImage(tmp,x*W,y*H);
+    $('#capT').textContent=tl.length>1?'New (A shown)':'New';
+    renderFound(res.report);
+    if(!running){
+      if(res.skipped)$('#status').textContent='Preview: '+res.skipped+'.';
+      else if(Math.max(p.src.w,p.src.h)>PREVIEW_MAX)$('#status').textContent='Preview is shown smaller for speed; the saved files use the full size.';
+    }
+  }catch(e){msg(e.message,true);}
+}
+
+/* ---------- run every job ---------- */
+function toPNG(data,w,h){
+  return new Promise((res,rej)=>{
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(data),w,h),0,0);
+    c.toBlob(async b=>{if(!b)return rej(new Error('PNG encode failed'));res(new Uint8Array(await b.arrayBuffer()));},'image/png');
+  });
+}
+const safeName=(s,fb)=>{const t=(s||'').replace(/[\\/:*?"<>|\u0000-\u001f]+/g,'_').replace(/^[\s.]+|[\s.]+$/g,'').slice(0,60);return t||fb;};
+let urls=[];
+async function run(){
+  const work=jobs.filter(j=>readyCount(j)>0);
+  if(!work.length)return;
+  running=true;stopFlag=false;armedDelete=0;renderJobBar();
+  for(const u of urls)URL.revokeObjectURL(u);urls=[];
+  $('#done').style.display='none';
+  const bar=$('#bar'),fill=bar.firstElementChild;bar.style.display='block';fill.style.width='0';
+  const total=work.reduce((s,j)=>s+readyCount(j),0);
+  let done=0;
+  const results=[],usedJob=new Set();
+  for(let ji=0;ji<work.length&&!stopFlag;ji++){
+    const j=work[ji],todo=j.pairs.filter(hasTarget);
+    let folder=safeName(j.name,'Job '+(ji+1)),base=folder,n=2;
+    while(usedJob.has(folder.toLowerCase()))folder=base+' ('+(n++)+')';
+    usedJob.add(folder.toLowerCase());
+    const files=[],used=new Set(),problems=[];
+    for(let i=0;i<todo.length;i++){
+      if(stopFlag)break;
+      const p=todo[i];
+      $('#status').textContent='Working… '+j.name+' ('+(ji+1)+'/'+work.length+') · '+(i+1)+' / '+todo.length;
+      try{
+        const S=await readData(p.src);
+        const tl=await targetsFor(j,p,S);
+        const res=convertTexture(S.data,tl,S.width,S.height,optsFor(j,p));
+        if(res.skipped)problems.push(p.src.name+': '+res.skipped);
+        else{
+          const png=await toPNG(res.data,S.width,S.height);
+          let name=p.src.name.replace(/\.[^.]+$/,'')+'.png',m=2;
+          while(used.has(name.toLowerCase()))name=p.src.name.replace(/\.[^.]+$/,'')+'_'+(m++)+'.png';
+          used.add(name.toLowerCase());
+          files.push({name,data:png});
+        }
+      }catch(e){problems.push(p.src.name+': '+e.message);}
+      done++;fill.style.width=Math.round(done/total*100)+'%';
+      if(done%4===0)await new Promise(r=>setTimeout(r,0));
+    }
+    results.push({job:j,folder,files,problems,stopped:stopFlag});
+  }
+  running=false;renderJobBar();
+  const ok=results.filter(r=>r.files.length);
+  const d=$('#done');d.textContent='';
+  if(!ok.length){$('#status').textContent=stopFlag?'Stopped.':'Nothing was produced.'+(results[0]&&results[0].problems[0]?' '+results[0].problems[0]:'');return;}
+  const link=(blob,fname,label)=>{const u=URL.createObjectURL(blob);urls.push(u);const a=document.createElement('a');a.href=u;a.download=fname;a.textContent=label;return a;};
+  if(ok.length===1&&results.length===1){
+    const r=ok[0];
+    d.append(link(makeZip(r.files),'texture_shift_results.zip','Download results ('+r.files.length+' PNG'+(r.files.length===1?'':'s')+')'));
+  }else{
+    const totalBytes=ok.reduce((s,r)=>s+r.files.reduce((a,f)=>a+f.data.length,0),0);
+    if(totalBytes<=COMBINED_LIMIT){
+      const all=[];for(const r of ok)for(const f of r.files)all.push({name:r.folder+'/'+f.name,data:f.data});
+      const a=link(makeZip(all),'texture_shift_all_jobs.zip','Download everything ('+all.length+' PNGs, one folder per job)');a.className='big';d.append(a);
+    }else d.append(el('p',null,'Everything is too large for one zip on this device, so each job has its own download below.'));
+    const list=el('div','jl');
+    for(const r of ok){
+      const row=el('div','jr');
+      row.append(link(makeZip(r.files),'texture_shift_'+r.folder+'.zip',r.folder+' · '+r.files.length+' PNG'+(r.files.length===1?'':'s')));
+      if(r.problems.length)row.append(el('span',null,r.problems.length+' skipped'));
+      list.append(row);
+    }
+    d.append(list);
+  }
+  const probs=results.reduce((s,r)=>s+r.problems.length,0);
+  d.append(el('p',null,(stopFlag?'Stopped early. ':'')+'Files keep the original names, so they drop straight over the old ones.'+(probs?' '+probs+' skipped: '+results.flatMap(r=>r.problems).slice(0,3).join('; ')+(probs>3?'…':''):'')));
+  d.style.display='block';
+  $('#status').textContent='Done.';
+}
+$('#start').addEventListener('click',()=>{if(running){stopFlag=true;}else run();});
+
+/* ---------- start ---------- */
+jobs=[newJob()];J=jobs[0];
+fillPresetSelect('');
+showJob();
+renderLib();
+})();
+</script>
+</body>
+</html>
