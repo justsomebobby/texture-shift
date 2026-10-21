@@ -82,6 +82,13 @@ input[type=text]{flex:1;min-width:0;background:#0f1218;color:var(--text);border:
 button:disabled.ghost{opacity:.4}
 body.running .lockable{pointer-events:none;opacity:.55}
 #done a.big{margin-bottom:10px}
+.exvars{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+#exSummary{color:var(--dim);font-size:13px;margin-top:10px}
+#exSummary.bad{color:var(--bad,#ff8a80)}
+#exOut{margin-top:12px}
+#exOut a{display:block;text-align:center;padding:14px;border-radius:14px;background:var(--ok);color:#06210f;font-weight:700;text-decoration:none}
+#exOut p{color:var(--dim);font-size:13px;margin:8px 0 0}
+
 .jl{display:grid;gap:8px}
 .jr{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .jr a{flex:1;background:none!important;border:1px solid var(--line);color:var(--text)!important;padding:10px!important;font-weight:600;font-size:14px;text-align:left!important}
@@ -154,30 +161,51 @@ body.nohelp .sl small{display:none}
 .tilegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px;padding:4px 0 2px}
 .tile .mem{position:absolute;right:2px;bottom:2px;font-size:9px;line-height:12px;background:var(--accent);color:#fff;border-radius:4px;padding:0 4px;font-weight:700}
 .tile .tag{left:2px;right:auto}
+.tabs{position:sticky;top:0;z-index:40;display:grid;grid-template-columns:1fr 1fr;gap:0;margin:10px -14px 0;padding:0;background:var(--bg);border-bottom:1px solid var(--line)}
+.tabs button{padding:13px 6px;border:0;border-bottom:3px solid transparent;background:none;color:var(--dim);font-size:15px;font-weight:700;min-height:46px}
+.tabs button.on{color:var(--text);border-bottom-color:var(--accent)}
+body.mode-import .editonly,body.mode-edit .importonly{display:none!important}
+body.mode-import .libh{display:none}
+.preview{top:46px!important}
+.mcrow{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--line)}
+.mcrow:first-child{border-top:0}
+.mcrow img{width:36px;height:36px;image-rendering:pixelated;border-radius:6px;background:#0f1218;flex:none;object-fit:contain}
+.mcrow .mcn{flex:1;min-width:0}
+.mcrow .mcn b{display:block;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcrow .mcn small{color:var(--dim);font-size:11px}
+.mcrow select{width:auto;flex:none;max-width:120px}
+.mcrow button{flex:none}
+#mcHead{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+#mcHead b{font-size:14px}
+.mcbulk{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 4px}
+.mcbulk span{color:var(--dim);font-size:12px}
+.mcbulk button{padding:6px 10px;font-size:12px}
+.addrow4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:8px}
+.addrow4 button{padding:10px 4px;border-radius:10px;border:1.5px solid var(--accent);background:none;color:var(--text);font-size:13px;font-weight:600}
+.addrow4 button.pri{background:var(--accent);color:#fff}
+.addrow4 button:disabled{opacity:.35;border-color:var(--line)}
+.exvars3{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;margin-top:2px}
+.step{margin:22px 0 8px;font-size:18px}
 .selbar{position:sticky;bottom:0;z-index:6;background:var(--card);margin:10px -12px -12px;padding:10px 12px 12px;border-top:1px solid var(--line);border-radius:0 0 14px 14px}
 </style>
 </head>
 <body>
 <main>
 <h1>Texture Shift</h1>
-<p class="sub">Merge a new look into batches of textures part by part: keep the original’s layout and grain as much as you like, take on the new colors, and bring in new features like moss only where the new texture has them. Import whole texture packs into a library, then send textures from it to your jobs. Up to 300 textures per set in a job; the library holds as many as you import.</p>
+<p class="sub"><b>Import items</b> brings textures in and turns them into Minecraft blocks, plants and resource packs. <b>Edit textures</b> merges a new look into batches of textures, part by part. Both use the same library of imported textures.</p>
+<nav class="tabs" id="modeTabs" role="tablist"><button type="button" id="tabImport" role="tab">Import items</button><button type="button" id="tabEdit" role="tab">Edit textures</button></nav>
 
-<div class="preview" id="pvWrap">
-  <div class="pvhead"><span id="pvName">Preview</span><span class="tag2" id="pvTag" style="display:none">own settings</span><button class="ghost sm" id="pvToggle" type="button">Hide</button></div>
-  <div class="pv" id="pvBody" style="display:none">
-    <figure><canvas id="cS"></canvas><figcaption>Original</figcaption></figure>
-    <figure><canvas id="cT"></canvas><figcaption id="capT">New</figcaption></figure>
-    <figure><canvas id="cR"></canvas><figcaption>Result</figcaption></figure>
-    <figure><canvas id="cX"></canvas><figcaption>Tiled 3×3</figcaption></figure>
-  </div>
-</div>
-
-<h2>Library</h2>
+<div id="paneImport" class="importonly">
+<h2 class="step">1 · Add textures</h2>
+<p class="lead" style="margin:0 0 8px">Import a texture pack, a folder or loose images into the library. Then tap textures to select them and add them to the Minecraft pack below.</p>
+<div id="libMountImport"><div id="libWrap">
+<h2 class="libh">Library</h2>
 <div class="card" id="libCard">
   <div class="picks">
     <label class="pick"><b>Import packs &amp; images</b><span>.zip · .mcpack · .mcaddon · Java pack · .jar · png · jpg · tga</span><input id="fLib" type="file" multiple></label>
     <label class="pick"><b>Import a folder</b><span>an unzipped pack (desktop and iPad)</span><input id="fLibDir" type="file" webkitdirectory multiple></label>
   </div>
+  <label class="check importonly" style="margin-top:8px"><input type="checkbox" id="impPlants" checked> Also import plants and cut-out shapes (they become plant blocks)</label>
   <div class="bar" id="libBar"><i></i></div>
   <div class="line"><button class="ghost" id="libStop" type="button" style="display:none">Stop import</button></div>
   <div id="libMsg"></div>
@@ -186,7 +214,7 @@ body.nohelp .sl small{display:none}
       <li>Packs: <b>.zip, .mcpack, .mcaddon, Java resource packs and .jar</b> files, including packs inside packs.</li>
       <li>Inside a pack only the <b>block folders</b> are read (<code>assets/…/textures/block/</code> for Java, <code>textures/blocks/</code> for Bedrock). Mobs, items, particles, menus, weather and sky are skipped.</li>
       <li>Images must be <b>square, 8–1024 px, a power of two</b> (16, 32, 64…). A tall strip of square frames is an animation and its first frame is used.</li>
-      <li>Stairs, fences, doors, rails, torches, plants and other <b>non-cube shapes</b> are skipped, and so are cut-outs that are mostly transparent. Glass, leaves and ice still import.</li>
+      <li>Stairs, fences, doors, rails, torches, plants and other <b>non-cube shapes</b> and mostly-transparent cut-outs are skipped when you edit textures. On <b>Import items</b> they come in too (untick the box to skip them). Glass, leaves and ice always import.</li>
       <li>A plain image or a zip of plain images, with no pack folders, is accepted when it is square and the right size.</li>
       <li>Everything skipped is listed with its reason, and most of it can be <b>imported anyway</b>.</li>
     </ul>
@@ -218,7 +246,7 @@ body.nohelp .sl small{display:none}
         <button class="ghost" id="libClear" type="button">Empty the library</button>
       </div>
     </details>
-    <div class="selbar lockable">
+    <div class="selbar lockable editonly">
       <div class="lead" style="margin:0 0 6px">Send <b id="selCount2">0</b> to <b id="jobLabel">Job 1</b> as</div>
       <div class="addrow">
         <button id="addSrc" type="button" disabled>To change</button>
@@ -227,8 +255,70 @@ body.nohelp .sl small{display:none}
         <button id="addT2" type="button" disabled>Toward C</button>
       </div>
     </div>
+    <div class="selbar importonly">
+      <div class="lead" style="margin:0 0 6px">Add <b id="selCount3">0</b> to the Minecraft pack as</div>
+      <div class="addrow4">
+        <button id="mcAddAuto" type="button" class="pri" disabled>Auto</button>
+        <button id="mcAddBlock" type="button" disabled>Blocks</button>
+        <button id="mcAddPlant" type="button" disabled>Plants</button>
+        <button id="mcAddTall" type="button" disabled>Tall plants</button>
+      </div>
+    </div>
   </div>
 </div>
+</div></div>
+<h2 class="step">2 · Your Minecraft pack</h2>
+<div class="card" id="mcCard">
+  <div id="mcEmpty" class="empty">Nothing here yet. Select textures in the library above, then tap <b>Auto</b>, <b>Blocks</b>, <b>Plants</b> or <b>Tall plants</b>.</div>
+  <div id="mcTools" style="display:none">
+    <div id="mcHead"><b id="mcCount"></b><button class="ghost sm" id="mcClear" type="button">Remove all</button></div>
+    <div class="mcbulk"><span>Set all to</span><button class="ghost" id="mcAllAuto" type="button">Auto</button><button class="ghost" id="mcAllBlock" type="button">Blocks</button><button class="ghost" id="mcAllPlant" type="button">Plants</button><button class="ghost" id="mcAllTall" type="button">Tall plants</button></div>
+  </div>
+  <div id="mcList"></div>
+</div>
+<h2 class="step">3 · Build it</h2>
+<div class="card" id="exportCard">
+  <div class="seg"><button type="button" id="exBlocks" class="on">New blocks</button><button type="button" id="exReplace">Replace game textures</button></div>
+  <div class="lead" id="exInfo" style="margin-top:8px"></div>
+  <div class="line"><label for="exName">Pack name</label><input id="exName" type="text" maxlength="40" value="Texture Shift" autocomplete="off"></div>
+  <div id="exBlockOpts">
+    <div class="line"><label for="exNs">Namespace</label><input id="exNs" type="text" maxlength="16" value="tshift" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off"></div>
+    <div class="lead" style="margin-top:10px">Made from each <b>block</b> texture:</div>
+    <div class="exvars">
+      <label class="check"><input type="checkbox" id="exV_cube" checked> Full block</label>
+      <label class="check"><input type="checkbox" id="exV_slab"> Slab</label>
+      <label class="check"><input type="checkbox" id="exV_stairs"> Stairs</label>
+      <label class="check"><input type="checkbox" id="exV_fence"> Fence</label>
+      <label class="check"><input type="checkbox" id="exV_wall"> Wall</label>
+      <label class="check" id="exCornerRow"><input type="checkbox" id="exCorner"> Corner stairs</label>
+    </div>
+    <div class="lead" style="margin-top:10px">Height blocks (they stack and flip like slabs):</div>
+    <div class="exvars">
+      <label class="check"><input type="checkbox" id="exV_eighth"> ⅛ block</label>
+      <label class="check"><input type="checkbox" id="exV_quarter"> ¼ block</label>
+      <label class="check"><input type="checkbox" id="exV_three_eighths"> ⅜ block</label>
+      <label class="check"><input type="checkbox" id="exV_three_quarters"> ¾ block</label>
+    </div>
+    <small style="display:block;color:var(--dim);font-size:12px;margin-top:8px">Plants become one pottable cross-shaped block each. Tall plants become a two-high block (name pairs like <i>rose_bush_bottom</i> and <i>rose_bush_top</i> merge into one). Corner stairs and tall plants need Minecraft 1.26.40 or newer; plants need 1.26.20.</small>
+  </div>
+  <div id="exSummary"></div>
+  <button class="main" id="exBuild" type="button" style="margin-top:12px" disabled>Build add-on</button>
+  <div id="exOut"></div>
+</div>
+</div>
+
+<div id="paneEdit" class="editonly">
+<div class="preview" id="pvWrap">
+  <div class="pvhead"><span id="pvName">Preview</span><span class="tag2" id="pvTag" style="display:none">own settings</span><button class="ghost sm" id="pvToggle" type="button">Hide</button></div>
+  <div class="pv" id="pvBody" style="display:none">
+    <figure><canvas id="cS"></canvas><figcaption>Original</figcaption></figure>
+    <figure><canvas id="cT"></canvas><figcaption id="capT">New</figcaption></figure>
+    <figure><canvas id="cR"></canvas><figcaption>Result</figcaption></figure>
+    <figure><canvas id="cX"></canvas><figcaption>Tiled 3×3</figcaption></figure>
+  </div>
+</div>
+
+<div id="libMountEdit"></div>
 
 <h2>Jobs</h2>
 <div id="jobtabs" class="jtabs lockable"></div>
@@ -296,6 +386,8 @@ body.nohelp .sl small{display:none}
 <div class="bar" id="bar"><i></i></div>
 <div id="status" class="sub" style="margin-top:8px"></div>
 <div id="done"></div>
+<div id="sendMcWrap" class="card" style="display:none;margin-top:12px"><div class="lead" id="sendMcInfo" style="margin:0 0 8px"></div><button class="main" id="sendMc" type="button" style="margin-top:0">Send them to Import items</button></div>
+</div>
 </main>
 
 <script>
@@ -1586,6 +1678,502 @@ if(typeof module!=='undefined'&&module.exports)module.exports=api;
 </script>
 
 <script>
+/*EXPORT-DATA-START*/
+const NATIVE_DATA={files:"acacia_shelf,acacia_trapdoor,amethyst_block,amethyst_cluster,ancient_debris_side,ancient_debris_top,anvil_base,anvil_top_damaged_0,anvil_top_damaged_1,anvil_top_damaged_2,azalea_leaves,azalea_leaves_flowers,azalea_leaves_flowers_opaque,azalea_leaves_opaque,azalea_plant,azalea_side,azalea_top,bamboo_block,bamboo_block_top,bamboo_door_bottom,bamboo_door_top,bamboo_fence,bamboo_fence_gate,bamboo_leaf,bamboo_mosaic,bamboo_planks,bamboo_sapling,bamboo_shelf,bamboo_singleleaf,bamboo_small_leaf,bamboo_stem,bamboo_trapdoor,barrel_bottom,barrel_side,barrel_top,barrel_top_open,barrier,basalt_side,basalt_top,beacon,bedrock,bee_nest_bottom,bee_nest_front,bee_nest_front_honey,bee_nest_side,bee_nest_top,beehive_front,beehive_front_honey,beehive_side,beehive_top,beetroots_stage_0,beetroots_stage_1,beetroots_stage_2,beetroots_stage_3,bell_bottom,bell_side,bell_top,big_dripleaf_side1,big_dripleaf_side2,big_dripleaf_stem,big_dripleaf_top,birch_shelf,birch_trapdoor,blackstone,blackstone_top,blast_furnace_front_off,blast_furnace_front_on,blast_furnace_side,blast_furnace_top,blue_ice,bone_block_side,bone_block_top,bookshelf,border,brewing_stand,brewing_stand_base,brick,bubble_column_down_top_a,bubble_column_down_top_b,bubble_column_down_top_c,bubble_column_down_top_d,bubble_column_inner_a,bubble_column_inner_b,bubble_column_outer_a,bubble_column_outer_b,bubble_column_outer_c,bubble_column_outer_d,bubble_column_outer_e,bubble_column_outer_f,bubble_column_outer_g,bubble_column_outer_h,bubble_column_up_top_a,bubble_column_up_top_b,bubble_column_up_top_c,bubble_column_up_top_d,budding_amethyst,build_allow,build_deny,bush,cactus_bottom,cactus_flower,cactus_side,cactus_top,cake,cake_bottom,cake_inner,cake_side,cake_top,calcite,calibrated_sculk_sensor_amethyst,calibrated_sculk_sensor_input_side,calibrated_sculk_sensor_top,camera_back,camera_front,camera_side,camera_top,campfire,campfire_log,campfire_log_lit,candles/black_candle,candles/black_candle_lit,candles/blue_candle,candles/blue_candle_lit,candles/brown_candle,candles/brown_candle_lit,candles/candle,candles/candle_lit,candles/cyan_candle,candles/cyan_candle_lit,candles/gray_candle,candles/gray_candle_lit,candles/green_candle,candles/green_candle_lit,candles/light_blue_candle,candles/light_blue_candle_lit,candles/light_gray_candle,candles/light_gray_candle_lit,candles/lime_candle,candles/lime_candle_lit,candles/magenta_candle,candles/magenta_candle_lit,candles/orange_candle,candles/orange_candle_lit,candles/pink_candle,candles/pink_candle_lit,candles/purple_candle,candles/purple_candle_lit,candles/red_candle,candles/red_candle_lit,candles/white_candle,candles/white_candle_lit,candles/yellow_candle,candles/yellow_candle_lit,carried_waterlily,carrots_stage_0,carrots_stage_1,carrots_stage_2,carrots_stage_3,cartography_table_side1,cartography_table_side2,cartography_table_side3,cartography_table_top,cauldron_bottom,cauldron_inner,cauldron_side,cauldron_top,cauldron_water,cave_vines_body,cave_vines_body_berries,cave_vines_head,cave_vines_head_berries,chain1,chain2,chain_command_block_back_mipmap,chain_command_block_conditional_mipmap,chain_command_block_front_mipmap,chain_command_block_side_mipmap,cherry_door_bottom,cherry_door_top,cherry_leaves,cherry_leaves_opaque,cherry_log_side,cherry_log_top,cherry_planks,cherry_sapling,cherry_shelf,cherry_trapdoor,chest_front,chest_side,chest_top,chiseled_bookshelf_empty,chiseled_bookshelf_occupied,chiseled_bookshelf_side,chiseled_bookshelf_top,chiseled_cinnabar,chiseled_copper,chiseled_nether_bricks,chiseled_polished_blackstone,chiseled_resin_bricks,chiseled_sulfur,chiseled_tuff,chiseled_tuff_bricks,chiseled_tuff_bricks_top,chiseled_tuff_top,chorus_flower,chorus_flower_dead,chorus_plant,cinnabar,cinnabar_bricks,clay,coal_block,coal_ore,coarse_dirt,cobblestone,cobblestone_mossy,cocoa_stage_0,cocoa_stage_1,cocoa_stage_2,command_block,command_block_back_mipmap,command_block_conditional_mipmap,command_block_front_mipmap,command_block_side_mipmap,comparator_off,comparator_on,compost,compost_ready,composter_bottom,composter_side,composter_top,concrete_black,concrete_blue,concrete_brown,concrete_cyan,concrete_gray,concrete_green,concrete_light_blue,concrete_lime,concrete_magenta,concrete_orange,concrete_pink,concrete_powder_black,concrete_powder_blue,concrete_powder_brown,concrete_powder_cyan,concrete_powder_gray,concrete_powder_green,concrete_powder_light_blue,concrete_powder_lime,concrete_powder_magenta,concrete_powder_orange,concrete_powder_pink,concrete_powder_purple,concrete_powder_red,concrete_powder_silver,concrete_powder_white,concrete_powder_yellow,concrete_purple,concrete_red,concrete_silver,concrete_white,concrete_yellow,conduit_base,copper_bars,copper_block,copper_bulb,copper_bulb_lit,copper_bulb_lit_powered,copper_bulb_powered,copper_chain1,copper_chain2,copper_chest_inventory_front,copper_chest_inventory_side,copper_chest_inventory_top,copper_door_bottom,copper_door_top,copper_grate,copper_lantern,copper_ore,copper_torch,copper_trapdoor,coral_blue,coral_blue_dead,coral_fan_blue,coral_fan_blue_dead,coral_fan_pink,coral_fan_pink_dead,coral_fan_purple,coral_fan_purple_dead,coral_fan_red,coral_fan_red_dead,coral_fan_yellow,coral_fan_yellow_dead,coral_pink,coral_pink_dead,coral_plant_blue,coral_plant_blue_dead,coral_plant_pink,coral_plant_pink_dead,coral_plant_purple,coral_plant_purple_dead,coral_plant_red,coral_plant_red_dead,coral_plant_yellow,coral_plant_yellow_dead,coral_purple,coral_purple_dead,coral_red,coral_red_dead,coral_yellow,coral_yellow_dead,cracked_nether_bricks,cracked_polished_blackstone_bricks,crafter_bottom,crafter_east,crafter_east_crafting,crafter_east_triggered,crafter_north,crafter_north_crafting,crafter_south,crafter_south_triggered,crafter_top,crafter_top_crafting,crafter_top_triggered,crafter_west,crafter_west_crafting,crafter_west_triggered,crafting_table_front,crafting_table_side,crafting_table_top,creaking_heart_side_active,creaking_heart_side_dormant,creaking_heart_side_inactive,creaking_heart_top_active,creaking_heart_top_dormant,creaking_heart_top_inactive,crimson_fungus,crimson_nylium_side,crimson_nylium_top,crimson_roots,crimson_roots_pot,crimson_shelf,crying_obsidian,cut_copper,dark_oak_shelf,dark_oak_trapdoor,daylight_detector_inverted_top,daylight_detector_side,daylight_detector_top,deadbush,decorated_pot_base,decorated_pot_side,deepslate/chiseled_deepslate,deepslate/cobbled_deepslate,deepslate/cracked_deepslate_bricks,deepslate/cracked_deepslate_tiles,deepslate/deepslate,deepslate/deepslate_bricks,deepslate/deepslate_coal_ore,deepslate/deepslate_copper_ore,deepslate/deepslate_diamond_ore,deepslate/deepslate_emerald_ore,deepslate/deepslate_gold_ore,deepslate/deepslate_iron_ore,deepslate/deepslate_lapis_ore,deepslate/deepslate_redstone_ore,deepslate/deepslate_tiles,deepslate/deepslate_top,deepslate/polished_deepslate,diamond_block,diamond_ore,dirt,dirt_podzol_side,dirt_podzol_top,dirt_with_roots,dispenser_front_horizontal,dispenser_front_vertical,door_acacia_lower,door_acacia_upper,door_birch_lower,door_birch_upper,door_dark_oak_lower,door_dark_oak_upper,door_iron_lower,door_iron_upper,door_jungle_lower,door_jungle_upper,door_spruce_lower,door_spruce_upper,door_wood_lower,door_wood_upper,double_plant_fern_bottom,double_plant_fern_carried,double_plant_fern_top,double_plant_grass_bottom,double_plant_grass_carried,double_plant_grass_top,double_plant_paeonia_bottom,double_plant_paeonia_top,double_plant_rose_bottom,double_plant_rose_top,double_plant_sunflower_back,double_plant_sunflower_bottom,double_plant_sunflower_front,double_plant_sunflower_top,double_plant_syringa_bottom,double_plant_syringa_top,dragon_egg,dried_ghast_state_1_back,dried_ghast_state_1_bottom,dried_ghast_state_1_front,dried_ghast_state_1_left,dried_ghast_state_1_right,dried_ghast_state_1_tentacles,dried_ghast_state_1_top,dried_ghast_state_2_back,dried_ghast_state_2_bottom,dried_ghast_state_2_front,dried_ghast_state_2_left,dried_ghast_state_2_right,dried_ghast_state_2_tentacles,dried_ghast_state_2_top,dried_ghast_state_3_back,dried_ghast_state_3_bottom,dried_ghast_state_3_front,dried_ghast_state_3_left,dried_ghast_state_3_right,dried_ghast_state_3_tentacles,dried_ghast_state_3_top,dried_ghast_state_4_back,dried_ghast_state_4_bottom,dried_ghast_state_4_front,dried_ghast_state_4_left,dried_ghast_state_4_right,dried_ghast_state_4_tentacles,dried_ghast_state_4_top,dried_kelp_side_a,dried_kelp_side_b,dried_kelp_top,dripstone_block,dropper_front_horizontal,dropper_front_vertical,emerald_block,emerald_ore,enchanting_table_bottom,enchanting_table_side,enchanting_table_top,end_bricks,end_gateway,end_portal,end_rod,end_stone,ender_chest_front,ender_chest_side,ender_chest_top,endframe_eye,endframe_side,endframe_top,exposed_chiseled_copper,exposed_copper,exposed_copper_bars,exposed_copper_bulb,exposed_copper_bulb_lit,exposed_copper_bulb_lit_powered,exposed_copper_bulb_powered,exposed_copper_chain1,exposed_copper_chain2,exposed_copper_chest_inventory_front,exposed_copper_chest_inventory_side,exposed_copper_chest_inventory_top,exposed_copper_door_bottom,exposed_copper_door_top,exposed_copper_grate,exposed_copper_lantern,exposed_copper_trapdoor,exposed_cut_copper,exposed_lightning_rod,eyeblossom_blooming,eyeblossom_dormant,eyeblossom_eyes_blooming,eyeblossom_stem_blooming,farmland_dry,farmland_wet,fern,fern_carried,fire_0,fire_1,firefly_bush,firefly_bush_firefly,fletcher_table_side1,fletcher_table_side2,fletcher_table_top,flower_allium,flower_blue_orchid,flower_cornflower,flower_dandelion,flower_houstonia,flower_lily_of_the_valley,flower_oxeye_daisy,flower_pot,flower_rose,flower_tulip_orange,flower_tulip_pink,flower_tulip_red,flower_tulip_white,flower_wither_rose,flowering_azalea_side,flowering_azalea_top,frogspawn,frosted_ice_0,frosted_ice_1,frosted_ice_2,frosted_ice_3,furnace_front_off,furnace_front_on,furnace_side,furnace_top,gilded_blackstone,glass,glass_black,glass_blue,glass_brown,glass_cyan,glass_gray,glass_green,glass_light_blue,glass_lime,glass_magenta,glass_orange,glass_pane_top,glass_pane_top_black,glass_pane_top_blue,glass_pane_top_brown,glass_pane_top_cyan,glass_pane_top_gray,glass_pane_top_green,glass_pane_top_light_blue,glass_pane_top_lime,glass_pane_top_magenta,glass_pane_top_orange,glass_pane_top_pink,glass_pane_top_purple,glass_pane_top_red,glass_pane_top_silver,glass_pane_top_white,glass_pane_top_yellow,glass_pink,glass_purple,glass_red,glass_silver,glass_white,glass_yellow,glazed_terracotta_black,glazed_terracotta_blue,glazed_terracotta_brown,glazed_terracotta_cyan,glazed_terracotta_gray,glazed_terracotta_green,glazed_terracotta_light_blue,glazed_terracotta_lime,glazed_terracotta_magenta,glazed_terracotta_orange,glazed_terracotta_pink,glazed_terracotta_purple,glazed_terracotta_red,glazed_terracotta_silver,glazed_terracotta_white,glazed_terracotta_yellow,glow_item_frame,glow_lichen,glowing_obsidian,glowstone,gold_block,gold_ore,golden_dandelion,grass_carried,grass_path_side,grass_path_top,grass_side,grass_side_snowed,grass_top,gravel,grindstone_pivot,grindstone_round,grindstone_side,hanging_pale_moss_middle,hanging_pale_moss_tip,hanging_roots,hardened_clay,hardened_clay_stained_black,hardened_clay_stained_blue,hardened_clay_stained_brown,hardened_clay_stained_cyan,hardened_clay_stained_gray,hardened_clay_stained_green,hardened_clay_stained_light_blue,hardened_clay_stained_lime,hardened_clay_stained_magenta,hardened_clay_stained_orange,hardened_clay_stained_pink,hardened_clay_stained_purple,hardened_clay_stained_red,hardened_clay_stained_silver,hardened_clay_stained_white,hardened_clay_stained_yellow,hay_block_side,hay_block_top,heavy_core,honey_bottom,honey_side,honey_top,honeycomb,hopper_inside,hopper_outside,hopper_top,huge_fungus/crimson_door_lower,huge_fungus/crimson_door_top,huge_fungus/crimson_log_side,huge_fungus/crimson_log_top,huge_fungus/crimson_planks,huge_fungus/crimson_trapdoor,huge_fungus/stripped_crimson_stem_side,huge_fungus/stripped_crimson_stem_top,huge_fungus/stripped_warped_stem_side,huge_fungus/stripped_warped_stem_top,huge_fungus/warped_door_lower,huge_fungus/warped_door_top,huge_fungus/warped_planks,huge_fungus/warped_stem_side,huge_fungus/warped_stem_top,huge_fungus/warped_trapdoor,ice,ice_packed,iron_bars,iron_block,iron_ore,iron_trapdoor,itemframe_background,jigsaw_back,jigsaw_front,jigsaw_lock,jigsaw_side,jukebox_side,jukebox_top,jungle_shelf,jungle_trapdoor,kelp_a,kelp_b,kelp_c,kelp_d,kelp_top,kelp_top_bulb,ladder,lantern,lapis_block,lapis_ore,large_amethyst_bud,lava_flow,lava_still,leaf_litter,leaves_acacia,leaves_acacia_carried,leaves_acacia_opaque,leaves_big_oak,leaves_big_oak_carried,leaves_big_oak_opaque,leaves_birch,leaves_birch_carried,leaves_birch_opaque,leaves_jungle,leaves_jungle_carried,leaves_jungle_opaque,leaves_oak,leaves_oak_carried,leaves_oak_opaque,leaves_spruce,leaves_spruce_carried,leaves_spruce_opaque,lectern_base,lectern_front,lectern_sides,lectern_top,lever,lightning_rod,lightning_rod_powered,lodestone_side,lodestone_top,log_acacia,log_acacia_top,log_big_oak,log_big_oak_top,log_birch,log_birch_top,log_jungle,log_jungle_top,log_oak,log_oak_top,log_spruce,log_spruce_top,loom_bottom,loom_front,loom_side,loom_top,magma,mangrove_door_bottom,mangrove_door_top,mangrove_leaves,mangrove_leaves_carried,mangrove_leaves_opaque,mangrove_log_side,mangrove_log_top,mangrove_planks,mangrove_propagule,mangrove_propagule_hanging,mangrove_roots_side,mangrove_roots_top,mangrove_shelf,mangrove_trapdoor,medium_amethyst_bud,melon_side,melon_stem_connected,melon_stem_disconnected,melon_top,missing_tile,mob_spawner,moss_block,mud,mud_bricks,muddy_mangrove_roots_side,muddy_mangrove_roots_top,mushroom_block_inside,mushroom_block_skin_brown,mushroom_block_skin_red,mushroom_block_skin_stem,mushroom_brown,mushroom_red,mycelium_side,mycelium_top,nether_brick,nether_gold_ore,nether_sprouts,nether_wart_block,nether_wart_stage_0,nether_wart_stage_1,nether_wart_stage_2,netherite_block,netherrack,noteblock,oak_shelf,observer_back,observer_back_lit,observer_front,observer_side,observer_top,obsidian,ochre_froglight_side,ochre_froglight_top,oxidized_chiseled_copper,oxidized_copper,oxidized_copper_bars,oxidized_copper_bulb,oxidized_copper_bulb_lit,oxidized_copper_bulb_lit_powered,oxidized_copper_bulb_powered,oxidized_copper_chain1,oxidized_copper_chain2,oxidized_copper_chest_inventory_front,oxidized_copper_chest_inventory_side,oxidized_copper_chest_inventory_top,oxidized_copper_door_bottom,oxidized_copper_door_top,oxidized_copper_grate,oxidized_copper_lantern,oxidized_copper_trapdoor,oxidized_cut_copper,oxidized_lightning_rod,packed_mud,pale_hanging_moss_middle,pale_hanging_moss_tip,pale_moss_block,pale_moss_carpet_side_base,pale_moss_carpet_side_tip,pale_oak_door_bottom,pale_oak_door_top,pale_oak_leaves,pale_oak_leaves_opaque,pale_oak_log_side,pale_oak_log_top,pale_oak_planks,pale_oak_sapling,pale_oak_shelf,pale_oak_trapdoor,pearlescent_froglight_side,pearlescent_froglight_top,pink_petals,pink_petals_stem,piston_bottom,piston_inner,piston_side,piston_top_normal,piston_top_sticky,pitcher_crop_bottom,pitcher_crop_bottom_stage_1,pitcher_crop_bottom_stage_2,pitcher_crop_bottom_stage_3,pitcher_crop_bottom_stage_4,pitcher_crop_side,pitcher_crop_top,pitcher_crop_top_stage_3,pitcher_crop_top_stage_4,planks_acacia,planks_big_oak,planks_birch,planks_jungle,planks_oak,planks_spruce,pointed_dripstone_down_base,pointed_dripstone_down_frustum,pointed_dripstone_down_merge,pointed_dripstone_down_middle,pointed_dripstone_down_tip,pointed_dripstone_up_base,pointed_dripstone_up_frustum,pointed_dripstone_up_merge,pointed_dripstone_up_middle,pointed_dripstone_up_tip,polished_basalt_side,polished_basalt_top,polished_blackstone,polished_blackstone_bricks,polished_cinnabar,polished_sulfur,polished_tuff,portal,potatoes_stage_0,potatoes_stage_1,potatoes_stage_2,potatoes_stage_3,potent_sulfur,potted_azalea_bush_plant,potted_azalea_bush_side,potted_azalea_bush_top,potted_flowering_azalea_bush_plant,potted_flowering_azalea_bush_side,potted_flowering_azalea_bush_top,powder_snow,prismarine_bricks,prismarine_dark,prismarine_rough,pumpkin_face_off,pumpkin_face_on,pumpkin_side,pumpkin_stem_connected,pumpkin_stem_disconnected,pumpkin_top,purpur_block,purpur_pillar,purpur_pillar_top,quartz_block_bottom,quartz_block_chiseled,quartz_block_chiseled_top,quartz_block_lines,quartz_block_lines_top,quartz_block_side,quartz_block_top,quartz_bricks,quartz_ore,rail_activator,rail_activator_powered,rail_detector,rail_detector_powered,rail_golden,rail_golden_powered,rail_normal,rail_normal_turned,raw_copper_block,raw_gold_block,raw_iron_block,reactor_core_stage_0,reactor_core_stage_1,reactor_core_stage_2,red_nether_brick,red_sand,red_sandstone_bottom,red_sandstone_carved,red_sandstone_normal,red_sandstone_smooth,red_sandstone_top,redstone_block,redstone_dust_cross,redstone_dust_line,redstone_lamp_off,redstone_lamp_on,redstone_ore,redstone_torch_off,redstone_torch_on,reeds,reinforced_deepslate_bottom,reinforced_deepslate_side,reinforced_deepslate_top,repeater_off,repeater_on,repeating_command_block_back_mipmap,repeating_command_block_conditional_mipmap,repeating_command_block_front_mipmap,repeating_command_block_side_mipmap,resin_block,resin_bricks,resin_clump,respawn_anchor_bottom,respawn_anchor_side0,respawn_anchor_side1,respawn_anchor_side2,respawn_anchor_side3,respawn_anchor_side4,respawn_anchor_top,respawn_anchor_top_off,sand,sandstone_bottom,sandstone_carved,sandstone_normal,sandstone_smooth,sandstone_top,sapling_acacia,sapling_birch,sapling_jungle,sapling_oak,sapling_roofed_oak,sapling_spruce,scaffolding_bottom,scaffolding_side,scaffolding_top,sculk,sculk_catalyst_bottom,sculk_catalyst_side,sculk_catalyst_side_bloom,sculk_catalyst_top,sculk_catalyst_top_bloom,sculk_sensor_bottom,sculk_sensor_side,sculk_sensor_tendril_active,sculk_sensor_tendril_inactive,sculk_sensor_top,sculk_shrieker_bottom,sculk_shrieker_can_summon_inner_top,sculk_shrieker_inner_top,sculk_shrieker_side,sculk_shrieker_top,sculk_vein,sea_lantern,sea_pickle,seagrass,seagrass_carried,seagrass_doubletall_bottom_a,seagrass_doubletall_bottom_b,seagrass_doubletall_top_a,seagrass_doubletall_top_b,short_dry_grass,shroomlight,shulker_top_black,shulker_top_blue,shulker_top_brown,shulker_top_cyan,shulker_top_gray,shulker_top_green,shulker_top_light_blue,shulker_top_lime,shulker_top_magenta,shulker_top_orange,shulker_top_pink,shulker_top_purple,shulker_top_red,shulker_top_silver,shulker_top_undyed,shulker_top_white,shulker_top_yellow,slime,small_amethyst_bud,small_dripleaf_side,small_dripleaf_stem_bottom,small_dripleaf_stem_top,small_dripleaf_top,smithing_table_bottom,smithing_table_front,smithing_table_side,smithing_table_top,smoker_bottom,smoker_front_off,smoker_front_on,smoker_side,smoker_top,smooth_basalt,sniffer_egg_not_cracked_bottom,sniffer_egg_not_cracked_east,sniffer_egg_not_cracked_north,sniffer_egg_not_cracked_south,sniffer_egg_not_cracked_top,sniffer_egg_not_cracked_west,sniffer_egg_slightly_cracked_bottom,sniffer_egg_slightly_cracked_east,sniffer_egg_slightly_cracked_north,sniffer_egg_slightly_cracked_south,sniffer_egg_slightly_cracked_top,sniffer_egg_slightly_cracked_west,sniffer_egg_very_cracked_bottom,sniffer_egg_very_cracked_east,sniffer_egg_very_cracked_north,sniffer_egg_very_cracked_south,sniffer_egg_very_cracked_top,sniffer_egg_very_cracked_west,snow,soul_campfire,soul_campfire_log_lit,soul_fire_0,soul_fire_1,soul_lantern,soul_sand,soul_soil,soul_torch,sponge,sponge_wet,spore_blossom,spore_blossom_base,spruce_shelf,spruce_trapdoor,stone,stone_andesite,stone_andesite_smooth,stone_diorite,stone_diorite_smooth,stone_granite,stone_granite_smooth,stone_slab_side,stone_slab_top,stonebrick,stonebrick_carved,stonebrick_cracked,stonebrick_mossy,stonecutter2_bottom,stonecutter2_saw,stonecutter2_side,stonecutter2_top,stonecutter_bottom,stonecutter_other_side,stonecutter_side,stonecutter_top,stripped_acacia_log,stripped_acacia_log_top,stripped_bamboo_block,stripped_bamboo_block_top,stripped_birch_log,stripped_birch_log_top,stripped_cherry_log_side,stripped_cherry_log_top,stripped_dark_oak_log,stripped_dark_oak_log_top,stripped_jungle_log,stripped_jungle_log_top,stripped_mangrove_log_side,stripped_mangrove_log_top,stripped_oak_log,stripped_oak_log_top,stripped_pale_oak_log_side,stripped_pale_oak_log_top,stripped_spruce_log,stripped_spruce_log_top,structure_air,structure_block,structure_block_corner,structure_block_data,structure_block_export,structure_block_load,structure_block_save,structure_void,sulfur,sulfur_bricks,sulfur_spike_down_base,sulfur_spike_down_frustum,sulfur_spike_down_middle,sulfur_spike_down_tip,sulfur_spike_down_tip_merge,sulfur_spike_up_base,sulfur_spike_up_frustum,sulfur_spike_up_middle,sulfur_spike_up_tip,sulfur_spike_up_tip_merge,suspicious_gravel_0,suspicious_gravel_1,suspicious_gravel_2,suspicious_gravel_3,suspicious_sand_0,suspicious_sand_1,suspicious_sand_2,suspicious_sand_3,sweet_berry_bush_stage0,sweet_berry_bush_stage1,sweet_berry_bush_stage2,sweet_berry_bush_stage3,tall_dry_grass,tallgrass,tallgrass_carried,target_side,target_top,tinted_glass,tnt_bottom,tnt_side,tnt_top,torch_on,torchflower,torchflower_crop_stage_0,torchflower_crop_stage_1,trapdoor,trapped_chest_front,trial_spawner_bottom,trial_spawner_side_active,trial_spawner_side_active_ominous,trial_spawner_side_inactive,trial_spawner_side_inactive_ominous,trial_spawner_top_active,trial_spawner_top_active_ominous,trial_spawner_top_ejecting_reward,trial_spawner_top_ejecting_reward_ominous,trial_spawner_top_inactive,trial_spawner_top_inactive_ominous,trip_wire,trip_wire_source,tuff,tuff_bricks,turtle_egg_not_cracked,turtle_egg_slightly_cracked,turtle_egg_very_cracked,twisting_vines_base,twisting_vines_bottom,vault_bottom,vault_bottom_ominous,vault_front_ejecting,vault_front_ejecting_ominous,vault_front_off,vault_front_off_ominous,vault_front_on,vault_front_on_ominous,vault_side_off,vault_side_off_ominous,vault_side_on,vault_side_on_ominous,vault_top,vault_top_ejecting,vault_top_ejecting_ominous,vault_top_ominous,verdant_froglight_side,verdant_froglight_top,vine,vine_carried,warped_fungus,warped_nylium_side,warped_nylium_top,warped_roots,warped_roots_pot,warped_shelf,warped_wart_block,water_flow,water_flow_grey,water_still,water_still_grey,waterlily,weathered_chiseled_copper,weathered_copper,weathered_copper_bars,weathered_copper_bulb,weathered_copper_bulb_lit,weathered_copper_bulb_lit_powered,weathered_copper_bulb_powered,weathered_copper_chain1,weathered_copper_chain2,weathered_copper_chest_inventory_front,weathered_copper_chest_inventory_side,weathered_copper_chest_inventory_top,weathered_copper_door_bottom,weathered_copper_door_top,weathered_copper_grate,weathered_copper_lantern,weathered_copper_trapdoor,weathered_cut_copper,weathered_lightning_rod,web,weeping_vines_base,weeping_vines_bottom,wheat_stage_0,wheat_stage_1,wheat_stage_2,wheat_stage_3,wheat_stage_4,wheat_stage_5,wheat_stage_6,wheat_stage_7,wildflowers,wildflowers_stem,wool_colored_black,wool_colored_blue,wool_colored_brown,wool_colored_cyan,wool_colored_gray,wool_colored_green,wool_colored_light_blue,wool_colored_lime,wool_colored_magenta,wool_colored_orange,wool_colored_pink,wool_colored_purple,wool_colored_red,wool_colored_silver,wool_colored_white,wool_colored_yellow",
+alias:"acacia_leaves=leaves_acacia,acacia_leaves_carried=leaves_acacia_carried,acacia_log=log_acacia,acacia_log_side=log_acacia,acacia_log_top=log_acacia_top,acacia_planks=planks_acacia,acacia_sapling=sapling_acacia,acacia_sign=planks_acacia,acacia_wood=log_acacia,allium=flower_allium,andesite=stone_andesite,andesite_slab=stone_andesite,andesite_wall=stone_andesite,anvil_top_damaged_x=anvil_top_damaged_0,azalea_leaves_flowered=azalea_leaves_flowers,azure_bluet=flower_houstonia,bamboo_sign=bamboo_planks,beacon_base=obsidian,beacon_core=beacon,beacon_shell=glass,bed_bottom=planks_oak,beetroot=beetroots_stage_0,bell_stone=stone,big_oak_leaves=leaves_big_oak,big_oak_leaves_carried=leaves_big_oak_carried,birch_leaves=leaves_birch,birch_leaves_carried=leaves_birch_carried,birch_log=log_birch,birch_log_side=log_birch,birch_log_top=log_birch_top,birch_planks=planks_birch,birch_sapling=sapling_birch,birch_sign=planks_birch,birch_wood=log_birch,black_candle=candles/black_candle,black_candle_cake=cake,black_concrete=concrete_black,black_concrete_powder=concrete_powder_black,black_glazed_terracotta=glazed_terracotta_black,black_shulker_box=shulker_top_black,black_stained_glass=glass_black,black_stained_glass_pane_top=glass_pane_top_black,black_terracotta=hardened_clay_stained_black,black_wool=wool_colored_black,blast_furnace=blast_furnace_front_off,blast_furnace_front=blast_furnace_front_off,blue_candle=candles/blue_candle,blue_candle_cake=cake,blue_concrete=concrete_blue,blue_concrete_powder=concrete_powder_blue,blue_glazed_terracotta=glazed_terracotta_blue,blue_orchid=flower_blue_orchid,blue_shulker_box=shulker_top_blue,blue_stained_glass=glass_blue,blue_stained_glass_pane_top=glass_pane_top_blue,blue_terracotta=hardened_clay_stained_blue,blue_wool=wool_colored_blue,bookshelf_top=planks_oak,border_block=border,brain_coral=coral_plant_pink,brain_coral_block=coral_pink,brain_coral_fan=coral_fan_pink,brain_coral_wall_fan=coral_fan_pink,brick_slab=brick,brick_wall=brick,bricks=brick,brown_candle=candles/brown_candle,brown_candle_cake=cake,brown_concrete=concrete_brown,brown_concrete_powder=concrete_powder_brown,brown_glazed_terracotta=glazed_terracotta_brown,brown_mushroom_block=mushroom_block_skin_brown,brown_shulker_box=shulker_top_brown,brown_stained_glass=glass_brown,brown_stained_glass_pane_top=glass_pane_top_brown,brown_terracotta=hardened_clay_stained_brown,brown_wool=wool_colored_brown,bubble_column_down_top=bubble_column_down_top_a,bubble_column_mid=bubble_column_inner_a,bubble_column_outer=bubble_column_outer_a,bubble_column_up_top=bubble_column_up_top_a,bubble_coral=coral_plant_purple,bubble_coral_block=coral_purple,bubble_coral_fan=coral_fan_purple,bubble_coral_wall_fan=coral_fan_purple,cake_west=cake_side,campfire_fire=campfire,candle=candles/candle,candle_cake=cake,carrots=carrots_stage_0,cartography_table_bottom=planks_big_oak,chest_inventory=chest_top,chest_inventory_front=chest_front,chest_inventory_side=chest_side,chest_inventory_top=chest_top,chipped_anvil_top=anvil_top_damaged_1,chiseled_bookshelf_front=chiseled_bookshelf_empty,chiseled_deepslate=deepslate/chiseled_deepslate,chiseled_quartz_block=quartz_block_chiseled,chiseled_quartz_block_side=quartz_block_chiseled,chiseled_quartz_block_top=quartz_block_chiseled_top,chiseled_red_sandstone=red_sandstone_carved,chiseled_sandstone=sandstone_carved,chiseled_stone_bricks=stonebrick_carved,closed_eyeblossom=eyeblossom_dormant,cobbled_deepslate=deepslate/cobbled_deepslate,cobblestone_slab=cobblestone,cobblestone_wall=cobblestone,cocoa=cocoa_stage_0,command_block_back=command_block_back_mipmap,command_block_chain_back=chain_command_block_back_mipmap,command_block_chain_conditional_side=chain_command_block_conditional_mipmap,command_block_chain_front=chain_command_block_front_mipmap,command_block_chain_side=chain_command_block_side_mipmap,command_block_conditional_side=command_block_conditional_mipmap,command_block_front=command_block_front_mipmap,command_block_repeating_back=repeating_command_block_back_mipmap,command_block_repeating_conditional_side=repeating_command_block_conditional_mipmap,command_block_repeating_front=repeating_command_block_front_mipmap,command_block_repeating_side=repeating_command_block_side_mipmap,command_block_side=command_block_side_mipmap,comparator_stone_slab=stone_slab_top,comparator_torch=redstone_torch_off,comparator_up=comparator_off,concrete=concrete_white,concretePowder=concrete_powder_white,conduit=conduit_base,coral=coral_plant_blue,coral_block=coral_blue,coral_fan=coral_fan_blue,coral_fan_dead=coral_fan_blue_dead,coral_fan_hang_a=coral_fan_blue,coral_fan_hang_b=coral_fan_purple,coral_fan_hang_c=coral_fan_yellow,cornflower=flower_cornflower,cracked_deepslate_bricks=deepslate/cracked_deepslate_bricks,cracked_deepslate_tiles=deepslate/cracked_deepslate_tiles,cracked_stone_bricks=stonebrick_cracked,crafting_table_bottom=planks_oak,creaking_heart_side=creaking_heart_side_inactive,creaking_heart_top=creaking_heart_top_inactive,crimson_door_lower=huge_fungus/crimson_door_lower,crimson_door_top=huge_fungus/crimson_door_top,crimson_log_side=huge_fungus/crimson_log_side,crimson_log_top=huge_fungus/crimson_log_top,crimson_planks=huge_fungus/crimson_planks,crimson_sign=huge_fungus/crimson_planks,crimson_trapdoor=huge_fungus/crimson_trapdoor,cut_red_sandstone=red_sandstone_smooth,cut_red_sandstone_slab_side=red_sandstone_smooth,cut_red_sandstone_slab_top=red_sandstone_top,cut_sandstone=sandstone_smooth,cut_sandstone_slab_side=sandstone_smooth,cut_sandstone_slab_top=sandstone_top,cyan_candle=candles/cyan_candle,cyan_candle_cake=cake,cyan_concrete=concrete_cyan,cyan_concrete_powder=concrete_powder_cyan,cyan_glazed_terracotta=glazed_terracotta_cyan,cyan_shulker_box=shulker_top_cyan,cyan_stained_glass=glass_cyan,cyan_stained_glass_pane_top=glass_pane_top_cyan,cyan_terracotta=hardened_clay_stained_cyan,cyan_wool=wool_colored_cyan,damaged_anvil_top=anvil_top_damaged_2,dandelion=flower_dandelion,dark_oak_log=log_big_oak,dark_oak_log_side=log_big_oak,dark_oak_log_top=log_big_oak_top,dark_oak_planks=planks_big_oak,dark_oak_sapling=sapling_roofed_oak,dark_oak_wood=log_big_oak,dark_prismarine=prismarine_dark,dark_prismarine_slab=prismarine_dark,darkoak_sign=planks_big_oak,dead_brain_coral=coral_plant_pink_dead,dead_brain_coral_block=coral_pink_dead,dead_brain_coral_fan=coral_fan_pink_dead,dead_brain_coral_wall_fan=coral_fan_pink_dead,dead_bubble_coral=coral_plant_purple_dead,dead_bubble_coral_block=coral_purple_dead,dead_bubble_coral_fan=coral_fan_purple_dead,dead_bubble_coral_wall_fan=coral_fan_purple_dead,dead_fire_coral=coral_plant_red_dead,dead_fire_coral_block=coral_red_dead,dead_fire_coral_fan=coral_fan_red_dead,dead_fire_coral_wall_fan=coral_fan_red_dead,dead_horn_coral=coral_plant_yellow_dead,dead_horn_coral_block=coral_yellow_dead,dead_horn_coral_fan=coral_fan_yellow_dead,dead_horn_coral_wall_fan=coral_fan_yellow_dead,dead_tube_coral=coral_plant_blue_dead,dead_tube_coral_block=coral_blue_dead,dead_tube_coral_fan=coral_fan_blue_dead,dead_tube_coral_wall_fan=coral_fan_blue_dead,decorated_pot=decorated_pot_side,deepslate=deepslate/deepslate,deepslate_bricks=deepslate/deepslate_bricks,deepslate_coal_ore=deepslate/deepslate_coal_ore,deepslate_copper_ore=deepslate/deepslate_copper_ore,deepslate_diamond_ore=deepslate/deepslate_diamond_ore,deepslate_emerald_ore=deepslate/deepslate_emerald_ore,deepslate_gold_ore=deepslate/deepslate_gold_ore,deepslate_iron_ore=deepslate/deepslate_iron_ore,deepslate_lapis_ore=deepslate/deepslate_lapis_ore,deepslate_redstone_ore=deepslate/deepslate_redstone_ore,deepslate_tiles=deepslate/deepslate_tiles,deepslate_top=deepslate/deepslate_top,diorite=stone_diorite,diorite_slab=stone_diorite,diorite_wall=stone_diorite,dirt_path_side=grass_path_side,dirt_podzol_bottom=dirt,dispenser_front=dispenser_front_horizontal,dispenser_side=furnace_side,dispenser_top=furnace_top,door_lower=door_wood_lower,door_upper=door_wood_upper,double_plant_bottom=double_plant_sunflower_bottom,double_plant_carried=double_plant_sunflower_front,double_plant_top=double_plant_sunflower_top,dried_ghast_back=dried_ghast_state_1_back,dried_ghast_bottom=dried_ghast_state_1_bottom,dried_ghast_front=dried_ghast_state_1_front,dried_ghast_left=dried_ghast_state_1_left,dried_ghast_right=dried_ghast_state_1_right,dried_ghast_tentacles=dried_ghast_state_1_tentacles,dried_ghast_top=dried_ghast_state_1_top,dried_kelp_block_side_a=dried_kelp_side_a,dried_kelp_block_side_b=dried_kelp_side_b,dried_kelp_block_top=dried_kelp_top,dropper_front=dropper_front_horizontal,dropper_side=furnace_side,dropper_top=furnace_top,end_stone_brick_slab=end_bricks,end_stone_brick_wall=end_bricks,end_stone_bricks=end_bricks,ender_chest_inventory_front=ender_chest_front,ender_chest_inventory_side=ender_chest_side,ender_chest_inventory_top=ender_chest_top,endframe_bottom=end_stone,farmland=farmland_wet,farmland_moist=farmland_wet,farmland_side=dirt,fire_coral=coral_plant_red,fire_coral_block=coral_red,fire_coral_fan=coral_fan_red,fire_coral_wall_fan=coral_fan_red,flattened_anvil_base=anvil_base,flattened_anvil_top=anvil_top_damaged_0,flattened_cobblestone_wall=cobblestone,flattened_dirt=dirt,flattened_prismarine=prismarine_rough,flattened_purpur_block=purpur_block,flattened_quartz_block_side=quartz_block_side,flattened_quartz_block_top=quartz_block_top,flattened_redsandstone=red_sandstone_normal,flattened_redsandstone_bottom=red_sandstone_bottom,flattened_redsandstone_top=red_sandstone_top,flattened_sand=sand,flattened_sandstone=sandstone_normal,flattened_sandstone_bottom=sandstone_bottom,flattened_sandstone_top=sandstone_top,flattened_sponge=sponge,flattened_stone=stone,flattened_structure_void=structure_void,flattened_tnt_bottom=tnt_bottom,flattened_tnt_side=tnt_side,flattened_tnt_top=tnt_top,fletching_table_side1=fletcher_table_side1,fletching_table_side2=fletcher_table_side2,fletching_table_top=fletcher_table_top,flowing_lava=lava_flow,flowing_water=water_flow,flowing_water_grey=water_flow_grey,frog_spawn=frogspawn,frosted_ice=frosted_ice_0,furnace=furnace_front_off,furnace_front=furnace_front_off,granite=stone_granite,granite_slab=stone_granite,granite_wall=stone_granite,grass_block_side=grass_side,grass_block_snow=grass_side_snowed,grass_block_top=grass_top,grass_bottom=dirt,grass_carried_bottom=dirt,grass_carried_top=grass_carried,gray_candle=candles/gray_candle,gray_candle_cake=cake,gray_concrete=concrete_gray,gray_concrete_powder=concrete_powder_gray,gray_glazed_terracotta=glazed_terracotta_gray,gray_shulker_box=shulker_top_gray,gray_stained_glass=glass_gray,gray_stained_glass_pane_top=glass_pane_top_gray,gray_terracotta=hardened_clay_stained_gray,gray_wool=wool_colored_gray,green_candle=candles/green_candle,green_candle_cake=cake,green_concrete=concrete_green,green_concrete_powder=concrete_powder_green,green_glazed_terracotta=glazed_terracotta_green,green_shulker_box=shulker_top_green,green_stained_glass=glass_green,green_stained_glass_pane_top=glass_pane_top_green,green_terracotta=hardened_clay_stained_green,green_wool=wool_colored_green,grindstone_leg=log_big_oak,hanging_pale_moss=hanging_pale_moss_middle,hayblock_side=hay_block_side,hayblock_top=hay_block_top,honeycomb_block=honeycomb,horn_coral=coral_plant_yellow,horn_coral_block=coral_yellow,horn_coral_fan=coral_fan_yellow,horn_coral_wall_fan=coral_fan_yellow,infested_chiseled_stone_bricks=stonebrick_carved,infested_cobblestone=cobblestone,infested_cracked_stone_bricks=stonebrick_cracked,infested_mossy_stone_bricks=stonebrick_mossy,infested_stone=stone,infested_stone_bricks=stonebrick,iron_bars_edge=iron_bars,jack_o_lantern=pumpkin_face_on,jungle_leaves=leaves_jungle,jungle_leaves_carried=leaves_jungle_carried,jungle_log=log_jungle,jungle_log_side=log_jungle,jungle_log_top=log_jungle_top,jungle_planks=planks_jungle,jungle_sapling=sapling_jungle,jungle_sign=planks_jungle,jungle_wood=log_jungle,large_fern_bottom=double_plant_fern_bottom,large_fern_carried=double_plant_fern_carried,large_fern_top=double_plant_fern_top,leaves=leaves_oak,leaves2=leaves_acacia,leaves_carried=leaves_oak_carried,leaves_carried2=leaves_acacia_carried,lectern_bottom=planks_oak,lever_particle=cobblestone,light_blue_candle=candles/light_blue_candle,light_blue_concrete=concrete_light_blue,light_blue_concrete_powder=concrete_powder_light_blue,light_blue_glazed_terracotta=glazed_terracotta_light_blue,light_blue_shulker_box=shulker_top_light_blue,light_blue_stained_glass=glass_light_blue,light_blue_stained_glass_pane_top=glass_pane_top_light_blue,light_blue_terracotta=hardened_clay_stained_light_blue,light_blue_wool=wool_colored_light_blue,light_gray_candle=candles/light_gray_candle,light_gray_candle_cake=cake,light_gray_concrete=concrete_silver,light_gray_concrete_powder=concrete_powder_silver,light_gray_glazed_terracotta=glazed_terracotta_silver,light_gray_shulker_box=shulker_top_silver,light_gray_stained_glass=glass_silver,light_gray_stained_glass_pane_top=glass_pane_top_silver,light_gray_terracotta=hardened_clay_stained_silver,light_gray_wool=wool_colored_silver,lilac_additional=double_plant_sunflower_back,lilac_bottom=double_plant_syringa_bottom,lilac_carried=double_plant_syringa_top,lilac_top=double_plant_syringa_top,lily_of_the_valley=flower_lily_of_the_valley,lime_candle=candles/lime_candle,lime_candle_cake=cake,lime_concrete=concrete_lime,lime_concrete_powder=concrete_powder_lime,lime_glazed_terracotta=glazed_terracotta_lime,lime_shulker_box=shulker_top_lime,lime_stained_glass=glass_lime,lime_stained_glass_pane_top=glass_pane_top_lime,lime_terracotta=hardened_clay_stained_lime,lime_wool=wool_colored_lime,log2=log_acacia,log_side=log_oak,log_side2=log_acacia,log_top=log_oak_top,log_top2=log_acacia_top,magenta_candle=candles/magenta_candle,magenta_concrete=concrete_magenta,magenta_concrete_powder=concrete_powder_magenta,magenta_glazed_terracotta=glazed_terracotta_magenta,magenta_shulker_box=shulker_top_magenta,magenta_stained_glass=glass_magenta,magenta_stained_glass_pane_top=glass_pane_top_magenta,magenta_terracotta=hardened_clay_stained_magenta,magenta_wool=wool_colored_magenta,mangrove_sign=mangrove_planks,melon_stem=melon_stem_disconnected,monster_egg=cobblestone,mossy_cobblestone=cobblestone_mossy,mossy_cobblestone_slab=cobblestone_mossy,mossy_cobblestone_wall=cobblestone_mossy,mossy_stone_brick=stonebrick_mossy,mossy_stone_brick_slab=stonebrick_mossy,mossy_stone_brick_wall=stonebrick_mossy,mossy_stone_bricks=stonebrick_mossy,mushroom_block=mushroom_block_skin_brown,mushroom_brown_bottom=mushroom_block_inside,mushroom_brown_east=mushroom_block_inside,mushroom_brown_north=mushroom_block_inside,mushroom_brown_south=mushroom_block_inside,mushroom_brown_top=mushroom_block_inside,mushroom_brown_west=mushroom_block_inside,mushroom_red_bottom=mushroom_block_inside,mushroom_red_east=mushroom_block_inside,mushroom_red_north=mushroom_block_inside,mushroom_red_south=mushroom_block_inside,mushroom_red_top=mushroom_block_inside,mushroom_red_west=mushroom_block_inside,mushroom_stem=mushroom_block_skin_stem,mushroom_stem_bottom=mushroom_block_skin_stem,mushroom_stem_east=mushroom_block_skin_stem,mushroom_stem_north=mushroom_block_skin_stem,mushroom_stem_south=mushroom_block_skin_stem,mushroom_stem_top=mushroom_block_skin_stem,mushroom_stem_west=mushroom_block_skin_stem,mycelium_bottom=dirt,nether_brick_slab=nether_brick,nether_brick_wall=nether_brick,nether_bricks=nether_brick,nether_portal=portal,nether_quartz_ore=quartz_ore,nether_shroom_blue=warped_fungus,nether_shroom_red=crimson_fungus,nether_wart=nether_wart_stage_0,normal_stone_slab=stone,note_block=noteblock,oak_leaves=leaves_oak,oak_leaves_carried=leaves_oak_carried,oak_log=log_oak,oak_log_side=log_oak,oak_log_top=log_oak_top,oak_planks=planks_oak,oak_sapling=sapling_oak,oak_wood=log_oak,observer_bottom=observer_top,observer_east=observer_side,observer_north=observer_front,observer_south=observer_back,observer_west=observer_side,open_eyeblossom=eyeblossom_stem_blooming,open_eyeblossom_carried=eyeblossom_blooming,orange_candle=candles/orange_candle,orange_concrete=concrete_orange,orange_concrete_powder=concrete_powder_orange,orange_glazed_terracotta=glazed_terracotta_orange,orange_shulker_box=shulker_top_orange,orange_stained_glass=glass_orange,orange_stained_glass_pane_top=glass_pane_top_orange,orange_terracotta=hardened_clay_stained_orange,orange_tulip=flower_tulip_orange,orange_wool=wool_colored_orange,oxeye_daisy=flower_oxeye_daisy,packed_ice=ice_packed,pale_hanging_moss=pale_hanging_moss_middle,pale_moss_carpet_side=pale_moss_carpet_side_base,peony_bottom=double_plant_paeonia_bottom,peony_carried=double_plant_paeonia_top,peony_top=double_plant_paeonia_top,pink_candle=candles/pink_candle,pink_candle_cake=cake,pink_concrete=concrete_pink,pink_concrete_powder=concrete_powder_pink,pink_glazed_terracotta=glazed_terracotta_pink,pink_shulker_box=shulker_top_pink,pink_stained_glass=glass_pink,pink_stained_glass_pane_top=glass_pane_top_pink,pink_terracotta=hardened_clay_stained_pink,pink_tulip=flower_tulip_pink,pink_wool=wool_colored_pink,piston_top=piston_inner,pitcher_crop_lower_flower=pitcher_crop_bottom_stage_1,pitcher_crop_upper_flower=pitcher_crop_top_stage_3,pitcher_plant_bottom=pitcher_crop_bottom_stage_4,pitcher_plant_carried=pitcher_crop_top_stage_4,pitcher_plant_top=pitcher_crop_top_stage_4,planks=planks_oak,podzol_side=dirt_podzol_side,podzol_top=dirt_podzol_top,pointed_dripstone_base=pointed_dripstone_down_base,pointed_dripstone_frustum=pointed_dripstone_down_frustum,pointed_dripstone_merge=pointed_dripstone_down_merge,pointed_dripstone_middle=pointed_dripstone_down_middle,pointed_dripstone_tip=pointed_dripstone_down_tip,polished_andesite=stone_andesite_smooth,polished_andesite_slab=stone_andesite_smooth,polished_deepslate=deepslate/polished_deepslate,polished_diorite=stone_diorite_smooth,polished_diorite_slab=stone_diorite_smooth,polished_granite=stone_granite_smooth,polished_granite_slab=stone_granite_smooth,poppy=flower_rose,potatoes=potatoes_stage_0,prismarine=prismarine_rough,prismarine_brick_slab=prismarine_bricks,prismarine_slab=prismarine_rough,prismarine_wall=prismarine_rough,pumpkin_face=pumpkin_face_off,pumpkin_stem=pumpkin_stem_disconnected,purple_candle=candles/purple_candle,purple_candle_cake=cake,purple_concrete=concrete_purple,purple_concrete_powder=concrete_powder_purple,purple_glazed_terracotta=glazed_terracotta_purple,purple_shulker_box=shulker_top_purple,purple_stained_glass=glass_purple,purple_stained_glass_pane_top=glass_pane_top_purple,purple_terracotta=hardened_clay_stained_purple,purple_wool=wool_colored_purple,purpur_block_bottom=purpur_block,purpur_block_side=purpur_block,purpur_block_top=purpur_block,purpur_pillar_side=purpur_pillar,purpur_slab=purpur_block,quartz_pillar=quartz_block_lines,quartz_pillar_side=quartz_block_lines,quartz_pillar_top=quartz_block_lines_top,quartz_slab_bottom=quartz_block_top,quartz_slab_side=quartz_block_side,quartz_slab_top=quartz_block_top,reactor_core=reactor_core_stage_0,red_candle=candles/red_candle,red_candle_cake=cake,red_concrete=concrete_red,red_concrete_powder=concrete_powder_red,red_flower=flower_rose,red_glazed_terracotta=glazed_terracotta_red,red_mushroom_block=mushroom_block_skin_red,red_nether_brick_slab=red_nether_brick,red_nether_brick_wall=red_nether_brick,red_nether_bricks=red_nether_brick,red_sandstone=red_sandstone_normal,red_sandstone_slab_bottom=red_sandstone_bottom,red_sandstone_slab_side=red_sandstone_normal,red_sandstone_slab_top=red_sandstone_top,red_sandstone_wall=red_sandstone_normal,red_shulker_box=shulker_top_red,red_stained_glass=glass_red,red_stained_glass_pane_top=glass_pane_top_red,red_terracotta=hardened_clay_stained_red,red_tulip=flower_tulip_red,red_wool=wool_colored_red,redsandstone=red_sandstone_normal,redsandstone_bottom=red_sandstone_bottom,redsandstone_side=red_sandstone_normal,redsandstone_top=red_sandstone_top,redstone_lamp=redstone_lamp_off,repeater_floor=stone_slab_top,repeater_torch=redstone_torch_off,repeater_up=repeater_off,respawn_anchor_side=respawn_anchor_side0,rose_bush_bottom=double_plant_rose_bottom,rose_bush_carried=double_plant_rose_top,rose_bush_top=double_plant_rose_top,sandstone=sandstone_normal,sandstone_side=sandstone_normal,sandstone_slab_bottom=sandstone_bottom,sandstone_slab_side=sandstone_normal,sandstone_slab_top=sandstone_top,sandstone_wall=sandstone_normal,sapling=sapling_oak,seagrass_short=seagrass,seagrass_tall_bot_a=seagrass_doubletall_bottom_a,seagrass_tall_bot_b=seagrass_doubletall_bottom_b,seagrass_tall_top_a=seagrass_doubletall_top_a,seagrass_tall_top_b=seagrass_doubletall_top_b,short_grass=tallgrass,short_grass_carried=tallgrass_carried,shulker_box_top=shulker_top_white,sign=planks_oak,silver_glazed_terracotta=glazed_terracotta_silver,skull=soul_sand,slime_block=slime,smoker=smoker_front_off,smooth_quartz=quartz_block_bottom,smooth_quartz_slab=quartz_block_bottom,smooth_red_sandstone=red_sandstone_top,smooth_red_sandstone_slab=red_sandstone_top,smooth_sandstone=sandstone_top,smooth_sandstone_slab=sandstone_top,smooth_stone=stone_slab_top,smooth_stone_slab_bottom=stone_slab_top,smooth_stone_slab_side=stone_slab_side,smooth_stone_slab_top=stone_slab_top,sniffer_egg_bottom=sniffer_egg_not_cracked_bottom,sniffer_egg_east=sniffer_egg_not_cracked_east,sniffer_egg_north=sniffer_egg_not_cracked_north,sniffer_egg_south=sniffer_egg_not_cracked_south,sniffer_egg_top=sniffer_egg_not_cracked_top,sniffer_egg_west=sniffer_egg_not_cracked_west,soul_campfire_fire=soul_campfire,spawner=mob_spawner,spruce_leaves=leaves_spruce,spruce_leaves_carried=leaves_spruce_carried,spruce_log=log_spruce,spruce_log_side=log_spruce,spruce_log_top=log_spruce_top,spruce_planks=planks_spruce,spruce_sapling=sapling_spruce,spruce_sign=planks_spruce,spruce_wood=log_spruce,stained_clay=hardened_clay_stained_white,stained_glass=glass_white,stained_glass_pane_top=glass_pane_top_white,stair_purpur_block=purpur_block,stair_quartz_block_bottom=quartz_block_top,stair_quartz_block_side=quartz_block_side,stair_quartz_block_top=quartz_block_top,stair_smooth_quartz_block=quartz_block_bottom,still_lava=lava_still,still_water=water_still,still_water_grey=water_still_grey,stone_brick_slab=stonebrick,stone_brick_wall=stonebrick,stone_bricks=stonebrick,stone_slab=stone_slab_top,stone_slab_bottom=stone_slab_top,stone_slab_bottom_2=red_sandstone_bottom,stone_slab_bottom_3=end_bricks,stone_slab_bottom_4=stonebrick_mossy,stone_slab_side_2=red_sandstone_normal,stone_slab_side_3=end_bricks,stone_slab_side_4=stonebrick_mossy,stone_slab_top_2=red_sandstone_top,stone_slab_top_3=end_bricks,stone_slab_top_4=stonebrick_mossy,stripped_acacia_log_side=stripped_acacia_log,stripped_acacia_wood=stripped_acacia_log,stripped_birch_log_side=stripped_birch_log,stripped_birch_wood=stripped_birch_log,stripped_crimson_stem_side=huge_fungus/stripped_crimson_stem_side,stripped_crimson_stem_top=huge_fungus/stripped_crimson_stem_top,stripped_dark_oak_log_side=stripped_dark_oak_log,stripped_dark_oak_wood=stripped_dark_oak_log,stripped_jungle_log_side=stripped_jungle_log,stripped_jungle_wood=stripped_jungle_log,stripped_oak_log_side=stripped_oak_log,stripped_oak_wood=stripped_oak_log,stripped_spruce_log_side=stripped_spruce_log,stripped_spruce_wood=stripped_spruce_log,stripped_warped_stem_side=huge_fungus/stripped_warped_stem_side,stripped_warped_stem_top=huge_fungus/stripped_warped_stem_top,sulfur_spike_base=sulfur_spike_down_base,sulfur_spike_frustum=sulfur_spike_down_frustum,sulfur_spike_merge=sulfur_spike_down_tip_merge,sulfur_spike_middle=sulfur_spike_down_middle,sulfur_spike_tip=sulfur_spike_down_tip,sunflower_additional=double_plant_sunflower_front,sunflower_bottom=double_plant_sunflower_bottom,sunflower_carried=double_plant_sunflower_front,sunflower_top=double_plant_sunflower_top,suspicious_gravel=suspicious_gravel_0,suspicious_sand=suspicious_sand_0,sweet_berry_bush_0=sweet_berry_bush_stage0,sweet_berry_bush_1=sweet_berry_bush_stage1,sweet_berry_bush_2=sweet_berry_bush_stage2,sweet_berry_bush_3=sweet_berry_bush_stage3,tall_grass_bottom=double_plant_grass_bottom,tall_grass_carried=double_plant_grass_carried,tall_grass_top=double_plant_grass_top,terracotta=hardened_clay,torchflower_crop=torchflower_crop_stage_0,trapped_chest_inventory_front=trapped_chest_front,trial_spawner_side=trial_spawner_side_inactive,trial_spawner_top=trial_spawner_top_inactive,trip_wire_base=planks_oak,tube_coral=coral_plant_blue,tube_coral_block=coral_blue,tube_coral_fan=coral_fan_blue,tube_coral_wall_fan=coral_fan_blue,turtle_egg=turtle_egg_not_cracked,undyed_shulker_box_top=shulker_top_undyed,vault_front=vault_front_off,vault_side=vault_side_off,warped_door_lower=huge_fungus/warped_door_lower,warped_door_top=huge_fungus/warped_door_top,warped_planks=huge_fungus/warped_planks,warped_sign=huge_fungus/warped_planks,warped_stem_side=huge_fungus/warped_stem_side,warped_stem_top=huge_fungus/warped_stem_top,warped_trapdoor=huge_fungus/warped_trapdoor,waterlily_carried=carried_waterlily,wet_sponge=sponge_wet,wheat=wheat_stage_0,white_candle=candles/white_candle,white_candle_cake=cake,white_concrete=concrete_white,white_concrete_powder=concrete_powder_white,white_glazed_terracotta=glazed_terracotta_white,white_shulker_box=shulker_top_white,white_stained_glass=glass_white,white_stained_glass_pane_top=glass_pane_top_white,white_terracotta=hardened_clay_stained_white,white_tulip=flower_tulip_white,white_wool=wool_colored_white,wither_rose=flower_wither_rose,wood=log_oak,wood_acacia=planks_acacia,wood_big_oak=planks_big_oak,wood_birch=planks_birch,wood_jungle=planks_jungle,wood_oak=planks_oak,wood_spruce=planks_spruce,wool=wool_colored_white,yellow_candle=candles/yellow_candle,yellow_candle_cake=cake,yellow_concrete=concrete_yellow,yellow_concrete_powder=concrete_powder_yellow,yellow_flower=flower_dandelion,yellow_glazed_terracotta=glazed_terracotta_yellow,yellow_shulker_box=shulker_top_yellow,yellow_stained_glass=glass_yellow,yellow_stained_glass_pane_top=glass_pane_top_yellow,yellow_terracotta=hardened_clay_stained_yellow,yellow_wool=wool_colored_yellow"};
+/*EXPORT-DATA-END*/
+if(typeof module!=='undefined')module.exports=NATIVE_DATA;
+/*EXPORT-START*/
+/* Minecraft export: builds a Bedrock .mcaddon (new custom blocks) or a texture-replacement resource pack.
+   Block, texture, manifest and language layouts follow what Bedrock Foundry compiles. Shaped blocks
+   (slab, stairs, fence, wall) copy the Foundry's boxes, states, permutations and format versions;
+   only the UV mapping differs (tile-mapped so one 16x16 texture covers every face, and the geometry
+   is shared by every block of that shape). */
+const ExportCore=(function(){
+'use strict';
+let ND;try{ND=NATIVE_DATA;}catch(e){ND=require('./export_data.js');}
+const NATIVE_FILES=new Set(ND.files.split(','));
+const NATIVE_ALIAS=new Map(ND.alias.split(',').map(s=>{const i=s.indexOf('=');return[s.slice(0,i),s.slice(i+1)];}));
+
+/* ---------- small utilities ---------- */
+const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(buf,start,end){let c=0xFFFFFFFF;for(let i=start||0,e=end==null?buf.length:end;i<e;i++)c=CRC_T[(c^buf[i])&0xFF]^(c>>>8);return(c^0xFFFFFFFF)>>>0;}
+const enc=new TextEncoder();
+const utf8=s=>enc.encode(s);
+function concat(arrs){let n=0;for(const a of arrs)n+=a.length;const o=new Uint8Array(n);let p=0;for(const a of arrs){o.set(a,p);p+=a.length;}return o;}
+async function streamCompress(u8,format){
+  const cs=new CompressionStream(format),w=cs.writable.getWriter();
+  w.write(u8);w.close();
+  return new Uint8Array(await new Response(cs.readable).arrayBuffer());
+}
+const HAVE_CS=typeof CompressionStream!=='undefined'&&typeof Response!=='undefined';
+function adler32(b){let a=1,s=0;for(let i=0;i<b.length;i++){a=(a+b[i])%65521;s=(s+a)%65521;}return((s<<16)|a)>>>0;}
+function zlibStored(u8){ /* fallback when CompressionStream is missing: valid zlib stream, no compression */
+  const parts=[new Uint8Array([0x78,0x01])];
+  for(let p=0;p<u8.length||p===0;p+=65535){
+    const n=Math.min(65535,u8.length-p),last=p+n>=u8.length;
+    parts.push(new Uint8Array([last?1:0,n&255,n>>8,(~n)&255,((~n)>>8)&255]),u8.subarray(p,p+n));
+    if(last)break;
+  }
+  const ad=adler32(u8);parts.push(new Uint8Array([ad>>>24,(ad>>>16)&255,(ad>>>8)&255,ad&255]));
+  return concat(parts);
+}
+const zlibCompress=u8=>HAVE_CS?streamCompress(u8,'deflate'):Promise.resolve(zlibStored(u8));
+const jsonMin=o=>utf8(JSON.stringify(o));
+
+/* ---------- names ---------- */
+function sanitizeId(s){return String(s||'').toLowerCase().replace(/\.[a-z0-9]+$/,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').replace(/_+/g,'_');}
+function sanitizeNs(s){const t=sanitizeId(s).slice(0,16);return t;}
+function validNs(ns){return /^[a-z0-9_]{1,16}$/.test(ns)&&ns!=='minecraft'&&ns!=='minecon'&&ns!=='realms'&&ns!=='bedrock';}
+function titleCase(id){return id.split('_').filter(Boolean).map(w=>w[0].toUpperCase()+w.slice(1)).join(' ');}
+function packFolder(name){return String(name||'').replace(/[^A-Za-z0-9 _-]+/g,'').trim().replace(/\s+/g,' ').slice(0,40)||'Texture Shift';}
+
+/* deterministic UUIDs: the same inputs give the same pack ids, so re-installing replaces the old pack */
+function uuidFor(seed){
+  const hs=[0x811C9DC5,0x01000193,0x9E3779B1,0x85EBCA6B];
+  const out=[];
+  for(let k=0;k<4;k++){
+    let h=hs[k]>>>0;
+    for(let i=0;i<seed.length;i++){h^=seed.charCodeAt(i)+k*131;h=Math.imul(h,0x01000193)>>>0;h^=h>>>13;h=Math.imul(h,0x5bd1e995)>>>0;}
+    out.push(h>>>0);
+  }
+  const hex=out.map(x=>x.toString(16).padStart(8,'0')).join('');
+  const v='5',variant=((parseInt(hex[16],16)&3)|8).toString(16);
+  return hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+v+hex.slice(13,16)+'-'+variant+hex.slice(17,20)+'-'+hex.slice(20,32);
+}
+
+/* ---------- native (vanilla) texture names ---------- */
+function nativeFile(stem){
+  const s=sanitizeId(stem);
+  if(NATIVE_FILES.has(s))return s;
+  const a=NATIVE_ALIAS.get(s);
+  return a||null;
+}
+
+/* ---------- pixel analysis ---------- */
+function renderMethodFor(rgba){
+  let partial=false,clear=false;
+  for(let i=3;i<rgba.length;i+=4){const a=rgba[i];if(a===255)continue;if(a===0)clear=true;else{partial=true;break;}}
+  if(partial)return'blend';
+  return clear?'alpha_test':'opaque';
+}
+const RM_RANK={opaque:0,alpha_test:1,blend:2};
+
+/* ---------- PNG (palette when it fits, adaptive filters, zlib) ---------- */
+function paeth(a,b,c){const p=a+b-c,pa=Math.abs(p-a),pb=Math.abs(p-b),pc=Math.abs(p-c);return pa<=pb&&pa<=pc?a:pb<=pc?b:c;}
+function filterRows(raw,rowBytes,h,bpp){
+  const out=new Uint8Array((rowBytes+1)*h),cand=[0,1,2,3,4].map(()=>new Uint8Array(rowBytes));
+  for(let y=0;y<h;y++){
+    const cur=raw.subarray(y*rowBytes,(y+1)*rowBytes),prev=y?raw.subarray((y-1)*rowBytes,y*rowBytes):null;
+    let best=0,bestSum=Infinity;
+    for(let f=0;f<5;f++){
+      const o=cand[f];let sum=0;
+      for(let i=0;i<rowBytes;i++){
+        const a=i>=bpp?cur[i-bpp]:0,b=prev?prev[i]:0,c=prev&&i>=bpp?prev[i-bpp]:0;
+        let v;
+        if(f===0)v=cur[i];else if(f===1)v=cur[i]-a;else if(f===2)v=cur[i]-b;else if(f===3)v=cur[i]-((a+b)>>1);else v=cur[i]-paeth(a,b,c);
+        v&=255;o[i]=v;sum+=v<128?v:256-v;
+      }
+      if(sum<bestSum){bestSum=sum;best=f;}
+    }
+    out[y*(rowBytes+1)]=best;out.set(cand[best],y*(rowBytes+1)+1);
+  }
+  return out;
+}
+function pngChunk(type,data){
+  const out=new Uint8Array(12+data.length),dv=new DataView(out.buffer);
+  dv.setUint32(0,data.length);
+  for(let i=0;i<4;i++)out[4+i]=type.charCodeAt(i);
+  out.set(data,8);dv.setUint32(8+data.length,crc32(out,4,8+data.length));
+  return out;
+}
+async function encodePng(rgba,w,h){
+  const px=w*h,colors=new Map(),order=[];
+  let overflow=false;
+  const u32=new Uint32Array(rgba.buffer,rgba.byteOffset,px);
+  for(let i=0;i<px;i++){const v=u32[i];if(!colors.has(v)){if(colors.size>=256){overflow=true;break;}colors.set(v,0);order.push(v);}}
+  const ihdr=new Uint8Array(13),dv=new DataView(ihdr.buffer);
+  dv.setUint32(0,w);dv.setUint32(4,h);ihdr[10]=0;ihdr[11]=0;ihdr[12]=0;
+  const chunks=[];let raw,rowBytes,bpp;
+  if(!overflow){
+    const le=v=>[v&255,(v>>>8)&255,(v>>>16)&255,v>>>24];
+    /* transparent entries first so tRNS stays short */
+    order.sort((a,b)=>(a>>>24)-(b>>>24));
+    order.forEach((v,i)=>colors.set(v,i));
+    const n=order.length,depth=n<=2?1:n<=4?2:n<=16?4:8;
+    ihdr[8]=depth;ihdr[9]=3;
+    const plte=new Uint8Array(n*3);let lastAlpha=-1;const alphas=new Uint8Array(n);
+    order.forEach((v,i)=>{const c=le(v);plte[i*3]=c[0];plte[i*3+1]=c[1];plte[i*3+2]=c[2];alphas[i]=c[3];if(c[3]!==255)lastAlpha=i;});
+    chunks.push(pngChunk('IHDR',ihdr),pngChunk('PLTE',plte));
+    if(lastAlpha>=0)chunks.push(pngChunk('tRNS',alphas.subarray(0,lastAlpha+1)));
+    rowBytes=Math.ceil(w*depth/8);raw=new Uint8Array(rowBytes*h);bpp=1;
+    for(let y=0;y<h;y++){
+      for(let x=0;x<w;x++){
+        const idx=colors.get(u32[y*w+x]);
+        if(depth===8)raw[y*rowBytes+x]=idx;
+        else{const bit=x*depth,sh=8-depth-(bit&7);raw[y*rowBytes+(bit>>3)]|=idx<<sh;}
+      }
+    }
+  }else{
+    let opaque=true;for(let i=3;i<rgba.length;i+=4)if(rgba[i]!==255){opaque=false;break;}
+    ihdr[8]=8;ihdr[9]=opaque?2:6;bpp=opaque?3:4;rowBytes=w*bpp;raw=new Uint8Array(rowBytes*h);
+    for(let i=0;i<px;i++){raw[i*bpp]=rgba[i*4];raw[i*bpp+1]=rgba[i*4+1];raw[i*bpp+2]=rgba[i*4+2];if(!opaque)raw[i*bpp+3]=rgba[i*4+3];}
+    chunks.push(pngChunk('IHDR',ihdr));
+  }
+  chunks.push(pngChunk('IDAT',await zlibCompress(filterRows(raw,rowBytes,h,bpp))),pngChunk('IEND',new Uint8Array(0)));
+  return concat([new Uint8Array([137,80,78,71,13,10,26,10]),...chunks]);
+}
+function upscale(rgba,w,h,size){
+  const o=new Uint8Array(size*size*4);
+  for(let y=0;y<size;y++)for(let x=0;x<size;x++){const sx=Math.floor(x*w/size),sy=Math.floor(y*h/size),s=(sy*w+sx)*4,d=(y*size+x)*4;o[d]=rgba[s];o[d+1]=rgba[s+1];o[d+2]=rgba[s+2];o[d+3]=rgba[s+3];}
+  return o;
+}
+
+/* ---------- ZIP (deflate where it helps) ---------- */
+async function makeZipBytes(files){
+  const parts=[],cds=[];let offset=0;
+  const dt=0,dd=((2026-1980)<<9)|(1<<5)|1; /* fixed time stamp: identical input gives identical bytes */
+  for(const f of files){
+    const name=utf8(f.name),crc=crc32(f.data),size=f.data.length;
+    let body=f.data,method=0;
+    if(HAVE_CS&&size>48){const z=await streamCompress(f.data,'deflate-raw');if(z.length<size){body=z;method=8;}}
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(6,0x0800,true);lh.setUint16(8,method,true);
+    lh.setUint16(10,dt,true);lh.setUint16(12,dd,true);lh.setUint32(14,crc,true);lh.setUint32(18,body.length,true);lh.setUint32(22,size,true);
+    lh.setUint16(26,name.length,true);
+    parts.push(new Uint8Array(lh.buffer),name,body);
+    const ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(8,0x0800,true);ch.setUint16(10,method,true);
+    ch.setUint16(12,dt,true);ch.setUint16(14,dd,true);ch.setUint32(16,crc,true);ch.setUint32(20,body.length,true);ch.setUint32(24,size,true);
+    ch.setUint16(28,name.length,true);ch.setUint32(42,offset,true);
+    cds.push(new Uint8Array(ch.buffer),name);
+    offset+=30+name.length+body.length;
+  }
+  let cdSize=0;for(const c of cds)cdSize+=c.length;
+  const end=new DataView(new ArrayBuffer(22));
+  end.setUint32(0,0x06054b50,true);end.setUint16(8,files.length,true);end.setUint16(10,files.length,true);
+  end.setUint32(12,cdSize,true);end.setUint32(16,offset,true);
+  return concat([...parts,...cds,new Uint8Array(end.buffer)]);
+}
+
+/* ---------- shapes (boxes copied from the Foundry's canonical builders) ---------- */
+const DIRS=['north','south','east','west'];
+function connectionCubes(mask,wall){
+  const n=!!(mask&1),s=!!(mask&2),e=!!(mask&4),w=!!(mask&8),c=[];
+  if(wall){
+    c.push([[-4,0,-4],[8,16,8]]);
+    if(n)c.push([[-3,0,-8],[6,14,8]]);if(s)c.push([[-3,0,0],[6,14,8]]);
+    if(e)c.push([[0,0,-3],[8,14,6]]);if(w)c.push([[-8,0,-3],[8,14,6]]);
+  }else{
+    c.push([[-2,0,-2],[4,16,4]]);
+    if(n)c.push([[-1.5,5,-8],[3,6,8]]);if(s)c.push([[-1.5,5,0],[3,6,8]]);
+    if(e)c.push([[0,5,-1.5],[8,6,3]]);if(w)c.push([[-8,5,-1.5],[8,6,3]]);
+  }
+  return c;
+}
+const CORNERS=['none','inner_left','inner_right','outer_left','outer_right'];
+function stairCubes(top,corner){
+  const fullY=top?8:0,stepY=top?0:8,c=[[[-8,fullY,-8],[16,8,16]]];
+  if(corner==='none')c.push([[-8,stepY,0],[16,8,8]]);
+  else if(corner==='inner_left'){c.push([[-8,stepY,0],[16,8,8]]);c.push([[-8,stepY,-8],[8,8,8]]);}
+  else if(corner==='inner_right'){c.push([[-8,stepY,0],[16,8,8]]);c.push([[0,stepY,-8],[8,8,8]]);}
+  else if(corner==='outer_left')c.push([[-8,stepY,0],[8,8,8]]);
+  else if(corner==='outer_right')c.push([[0,stepY,0],[8,8,8]]);
+  return c;
+}
+const SLAB_HALF=[[[-8,0,-8],[16,8,16]]];
+const boxes=cubes=>cubes.map(([o,s])=>({origin:o.slice(),size:s.slice()}));
+function enclosing(cubes){
+  const lo=[1e9,1e9,1e9],hi=[-1e9,-1e9,-1e9];
+  for(const[o,s]of cubes)for(let i=0;i<3;i++){lo[i]=Math.min(lo[i],o[i]);hi[i]=Math.max(hi[i],o[i]+s[i]);}
+  return{origin:lo,size:[hi[0]-lo[0],hi[1]-lo[1],hi[2]-lo[2]]};
+}
+/* every face maps the 16x16 tile in world position, so textures line up across neighbouring blocks */
+function faceUv([o,s]){
+  const[ox,oy,oz]=o,[sx,sy,sz]=s,vTop=16-(oy+sy);
+  return{
+    north:{uv:[8-(ox+sx),vTop],uv_size:[sx,sy]},
+    south:{uv:[ox+8,vTop],uv_size:[sx,sy]},
+    east:{uv:[8-(oz+sz),vTop],uv_size:[sz,sy]},
+    west:{uv:[oz+8,vTop],uv_size:[sz,sy]},
+    up:{uv:[ox+8,oz+8],uv_size:[sx,sz]},
+    down:{uv:[ox+8,8-(oz+sz)],uv_size:[sx,sz]}
+  };
+}
+function geometryDoc(id,cubes){
+  return{format_version:'1.12.0','minecraft:geometry':[{description:{identifier:id,texture_width:16,texture_height:16},bones:[{name:'root',cubes:cubes.map(([o,s])=>({origin:o.slice(),size:s.slice(),uv:faceUv([o,s])}))}]}]};
+}
+const cond=(name,v)=>`query.block_state('${name}') == ${typeof v==='string'?"'"+v+"'":v}`;
+const geoId=(ns,key)=>`geometry.${ns}.${key}`;
+
+/* ---------- Foundry format versions and engine floors ---------- */
+const FV={cube:'1.26.0',log:'1.26.0',faces:'1.26.0',fence:'1.26.0',wall:'1.26.0',slab:'1.21.90',stair:'1.26.0',stairCorner:'1.26.40',layer:'1.21.90',plant:'1.26.20',tall:'1.26.40'};
+/* partial-height blocks: height in sixteenths of a block */
+const LAYERS={eighth:{h:2,suffix:'_eighth',label:'Eighth'},quarter:{h:4,suffix:'_quarter',label:'Quarter'},three_eighths:{h:6,suffix:'_three_eighths',label:'Three-Eighths'},three_quarters:{h:12,suffix:'_three_quarters',label:'Three-Quarters'}};
+const layerCubes=h=>[[[-8,0,-8],[16,h,16]]];
+const MIN_ENGINE_BASE=[1,21,80];
+
+/* ---------- block documents ---------- */
+function materials(b){
+  const m={'*':{texture:'texture/'+b.faces.side,render_method:b.render}};
+  if(b.faces.up&&b.faces.up!==b.faces.side)m.up={texture:'texture/'+b.faces.up,render_method:b.render};
+  if(b.faces.down&&b.faces.down!==b.faces.side)m.down={texture:'texture/'+b.faces.down,render_method:b.render};
+  return m;
+}
+function blockDoc(b,ns,opt){
+  const id=ns+':'+b.id;
+  const desc={menu_category:{category:b.category},identifier:id};
+  const mat={'*':{texture:'texture/'+b.faces.side,render_method:b.render}};
+  const geo=(k)=>geoId(ns,k);
+  const out=(fv,description,components,permutations)=>{const bk={description,components};if(permutations&&permutations.length)bk.permutations=permutations;return{format_version:fv,'minecraft:block':bk};};
+  switch(b.shape){
+    case'cube':case'faces':
+      return out(FV.cube,desc,{'minecraft:geometry':'minecraft:geometry.full_block','minecraft:material_instances':materials(b)});
+    case'log':{
+      desc.traits={'minecraft:placement_position':{enabled_states:['minecraft:block_face']}};
+      const mi={'*':{texture:'texture/'+b.faces.side,render_method:b.render},up:{texture:'texture/'+b.faces.up,render_method:b.render},down:{texture:'texture/'+b.faces.down,render_method:b.render}};
+      return out(FV.log,desc,{'minecraft:geometry':'minecraft:geometry.full_block','minecraft:material_instances':mi},[
+        {condition:"query.block_state('minecraft:block_face') == 'east' || query.block_state('minecraft:block_face') == 'west'",components:{'minecraft:transformation':{rotation:[0,0,90]}}},
+        {condition:"query.block_state('minecraft:block_face') == 'north' || query.block_state('minecraft:block_face') == 'south'",components:{'minecraft:transformation':{rotation:[90,0,0]}}}]);
+    }
+    case'slab':{
+      desc.traits={'minecraft:placement_position':{enabled_states:['minecraft:vertical_half']}};
+      const hb=enclosing(SLAB_HALF);
+      return out(FV.slab,desc,{'minecraft:collision_box':hb,'minecraft:selection_box':hb,'minecraft:geometry':geo('slab_half'),'minecraft:material_instances':mat},[
+        {condition:cond('minecraft:vertical_half','top'),components:{'minecraft:transformation':{translation:[0,0.5,0]},'minecraft:collision_box':{origin:[-8,8,-8],size:[16,8,16]},'minecraft:selection_box':{origin:[-8,8,-8],size:[16,8,16]}}}]);
+    }
+    case'stairs':{
+      const corner=!!opt.cornerStairs;
+      desc.traits={'minecraft:placement_position':{enabled_states:['minecraft:vertical_half']},'minecraft:placement_direction':{enabled_states:[corner?'minecraft:corner_and_cardinal_direction':'minecraft:cardinal_direction']}};
+      const base=stairCubes(false,'none'),perms=[];
+      for(const top of[false,true])for(const c of(corner?CORNERS:['none'])){
+        if(!top&&c==='none')continue;
+        const cubes=stairCubes(top,c),cs=[cond('minecraft:vertical_half',top?'top':'bottom')];
+        if(corner)cs.push(cond('minecraft:corner',c));
+        perms.push({condition:cs.join(' && '),components:{'minecraft:geometry':geo('stairs.'+(top?'top':'bottom')+'_'+c),'minecraft:collision_box':boxes(cubes),'minecraft:selection_box':enclosing(cubes)}});
+      }
+      for(const[d,y]of[['north',0],['east',90],['south',180],['west',270]])perms.push({condition:cond('minecraft:cardinal_direction',d),components:{'minecraft:transformation':{rotation:[0,y,0]}}});
+      return out(corner?FV.stairCorner:FV.stair,desc,{'minecraft:collision_box':boxes(base),'minecraft:selection_box':enclosing(base),'minecraft:geometry':geo('stairs.bottom_none'),'minecraft:material_instances':mat},perms);
+    }
+    case'layer':{
+      desc.traits={'minecraft:placement_position':{enabled_states:['minecraft:vertical_half']}};
+      const hb=enclosing(layerCubes(b.h)),topBox={origin:[-8,16-b.h,-8],size:[16,b.h,16]};
+      return out(FV.layer,desc,{'minecraft:collision_box':hb,'minecraft:selection_box':hb,'minecraft:geometry':geo('layer_'+b.h),'minecraft:material_instances':mat},[
+        {condition:cond('minecraft:vertical_half','top'),components:{'minecraft:transformation':{translation:[0,(16-b.h)/16,0]},'minecraft:collision_box':topBox,'minecraft:selection_box':JSON.parse(JSON.stringify(topBox))}}]);
+    }
+    case'plant':{
+      /* cross-shaped plant that can also be placed in a flower pot (components stay in the root, as the game requires) */
+      return out(FV.plant,desc,{'minecraft:geometry':'minecraft:geometry.cross','minecraft:material_instances':mat,'minecraft:collision_box':false,'minecraft:selection_box':{origin:[-4,0,-4],size:[8,12,8]},
+        'minecraft:flower_pottable':{},'minecraft:embedded_visual':{geometry:'minecraft:geometry.cross',material_instances:JSON.parse(JSON.stringify(mat))}});
+    }
+    case'tall':{
+      /* two blocks stacked as one: native multi_block trait, part 0 below, part 1 above */
+      desc.traits={'minecraft:multi_block':{enabled_states:['minecraft:multi_block_part'],parts:2,direction:'up'}};
+      const mi=k=>({'*':{texture:'texture/'+k,render_method:b.render}});
+      return out(FV.tall,desc,{'minecraft:geometry':'minecraft:geometry.cross','minecraft:material_instances':mi(b.faces.side),'minecraft:movable':{movement_type:'popped'},'minecraft:collision_box':false,'minecraft:selection_box':{origin:[-4,0,-4],size:[8,16,8]}},[
+        {condition:cond('minecraft:multi_block_part',1),components:{'minecraft:material_instances':mi(b.faces.up)}}]);
+    }
+    case'fence':case'wall':{
+      const wall=b.shape==='wall';
+      desc.traits={'minecraft:connection':{enabled_states:['minecraft:cardinal_connections']}};
+      const base=connectionCubes(0,wall),perms=[];
+      for(let mask=1;mask<16;mask++){
+        const cubes=connectionCubes(mask,wall),bits=[mask&1,mask&2,mask&4,mask&8].map(x=>!!x);
+        perms.push({condition:DIRS.map((d,i)=>cond('minecraft:connection_'+d,bits[i])).join(' && '),components:{'minecraft:geometry':geo(b.shape+'.c'+mask.toString(16)),'minecraft:collision_box':boxes(cubes),'minecraft:selection_box':enclosing(cubes)}});
+      }
+      const comp={'minecraft:collision_box':boxes(base),'minecraft:selection_box':enclosing(base)};
+      if(!wall)comp['minecraft:support']={shape:'fence'};
+      comp['minecraft:geometry']=geo(b.shape+'.c0');comp['minecraft:material_instances']=mat;
+      return out(wall?FV.wall:FV.fence,desc,comp,perms);
+    }
+  }
+  throw new Error('unknown shape '+b.shape);
+}
+/* geometry files the chosen shapes need (shared by every block of that shape) */
+function geometryFiles(blocks,ns,opt){
+  const shapes=new Set(blocks.map(b=>b.shape)),heights=[...new Set(blocks.filter(b=>b.shape==='layer').map(b=>b.h))].sort((a,b)=>a-b);
+  const out=[];
+  const add=(key,cubes)=>out.push({name:'models/entity/'+ns+'_'+key.replace(/\./g,'_')+'.geo.json',data:jsonMin(geometryDoc(geoId(ns,key),cubes))});
+  if(shapes.has('slab'))add('slab_half',SLAB_HALF);
+  for(const h of heights)add('layer_'+h,layerCubes(h));
+  if(shapes.has('stairs'))for(const top of[false,true])for(const c of(opt.cornerStairs?CORNERS:['none']))add('stairs.'+(top?'top':'bottom')+'_'+c,stairCubes(top,c));
+  for(const sh of['fence','wall'])if(shapes.has(sh))for(let m=0;m<16;m++)add(sh+'.c'+m.toString(16),connectionCubes(m,sh==='wall'));
+  return out;
+}
+
+/* ---------- planning ---------- */
+const SHAPE_SUFFIX={slab:'_slab',stairs:'_stairs',fence:'_fence',wall:'_wall'};
+const CATEGORY_NATURE=new Set(['Leaves','Logs & stems','Dirt, grass & sand','Ice & snow','Ocean','Plants & misc','Ores']);
+function soundFor(cat,id){
+  if(/sand/.test(id)&&!/sandstone/.test(id))return'sand';
+  if(/gravel/.test(id))return'gravel';
+  if(/glass|ice/.test(id))return'glass';
+  if(cat==='Planks'||cat==='Logs & stems')return'wood';
+  if(cat==='Wool & carpet')return'cloth';
+  if(cat==='Leaves'||/grass|moss|dirt|mycelium|podzol/.test(id))return'grass';
+  if(cat==='Metal & gem blocks'||cat==='Copper')return'metal';
+  if(cat==='Glass')return'glass';
+  return'stone';
+}
+/* group xyz_top / xyz_side / xyz_bottom / xyz_end into one multi-face block */
+function groupFaces(entries){
+  const by=new Map(entries.map(e=>[e.id,e])),used=new Set(),groups=[];
+  for(const e of entries){
+    const m=/^(.*)_(top|end)$/.exec(e.id);
+    if(!m)continue;
+    const base=m[1],side=by.get(base+'_side')||by.get(base);
+    if(!side||side===e)continue;
+    const bottom=by.get(base+'_bottom')||(m[2]==='end'?e:null);
+    groups.push({id:base,side,top:e,bottom:bottom||e});
+    used.add(e.id);used.add(side.id);if(bottom)used.add(bottom.id);
+  }
+  return{groups,used};
+}
+/* entries: [{stem, w, h, rgba, cat?, kind?}] where kind is 'block' (default), 'plant' or 'tall'.
+   Returns {blocks, textures, skipped}. */
+const RM_AT_LEAST_ALPHA=rm=>RM_RANK[rm]>=1?rm:'alpha_test';
+function planNew(entries,o){
+  const ns=o.namespace,variants=o.variants||{cube:true},skipped=[],seen=new Set(),list=[];
+  for(const e of entries){
+    let id=sanitizeId(e.stem);
+    if(!id){skipped.push({name:e.stem,why:'the name has no usable letters or digits'});continue;}
+    if(seen.has(id)){let n=2;while(seen.has(id+'_'+n))n++;id=id+'_'+n;}
+    seen.add(id);list.push({id,e,rm:renderMethodFor(e.rgba),kind:e.kind==='plant'||e.kind==='tall'?e.kind:'block'});
+  }
+  const blocks=[],textures=new Map(),blockIds=new Set();
+  const useTex=x=>{textures.set(x.id,x.e);return x.id;};
+  const push=(id,title,shape,faces,render,category,sound,extra)=>{
+    if(blockIds.has(id)){skipped.push({name:id,why:'another block already uses this name'});return;}
+    blockIds.add(id);blocks.push(Object.assign({id,title,shape,faces,render,category,sound},extra||{}));
+  };
+  const catOf=(c,fallback)=>CATEGORY_NATURE.has(c||'')?'nature':fallback;
+  /* ordinary blocks: faces are grouped, shapes and heights are made from each */
+  const plain=list.filter(x=>x.kind==='block');
+  const{groups,used}=groupFaces(plain);
+  const units=[];
+  for(const g of groups){
+    const rms=[g.side,g.top,g.bottom].map(x=>x.rm).sort((a,b)=>RM_RANK[b]-RM_RANK[a]);
+    const axis=/(log|stem|hyphae|wood|pillar|stalk)$/.test(g.id)||/pillar|_log_/.test(g.id);
+    units.push({id:g.id,side:g.side,up:g.top,down:g.bottom,render:rms[0],axis,cat:g.side.e.cat||g.top.e.cat});
+  }
+  for(const x of plain)if(!used.has(x.id))units.push({id:x.id,side:x,up:null,down:null,render:x.rm,axis:false,cat:x.e.cat});
+  for(const u of units){
+    const faces={side:useTex(u.side)};
+    if(u.up){faces.up=useTex(u.up);faces.down=useTex(u.down);}
+    const cat=u.cat||'',category=catOf(cat,o.category||'construction'),sound=soundFor(cat,u.id);
+    if(variants.cube!==false)push(u.id,titleCase(u.id),u.up?(u.axis?'log':'faces'):'cube',faces,u.render,category,sound);
+    const single=()=>({side:faces.side});
+    for(const sh of['slab','stairs','fence','wall'])if(variants[sh]&&!u.id.endsWith(SHAPE_SUFFIX[sh]))push(u.id+SHAPE_SUFFIX[sh],titleCase(u.id+SHAPE_SUFFIX[sh]),sh,single(),u.render,category,sound);
+    for(const[k,L]of Object.entries(LAYERS))if(variants[k]&&!u.id.endsWith(L.suffix))push(u.id+L.suffix,titleCase(u.id)+' '+L.label,'layer',single(),u.render,category,sound,{h:L.h});
+  }
+  /* plants: one cross-shaped, pottable block per texture */
+  for(const x of list.filter(x=>x.kind==='plant'))
+    push(x.id,titleCase(x.id),'plant',{side:useTex(x)},RM_AT_LEAST_ALPHA(x.rm),'nature','grass');
+  /* tall plants: xyz_bottom + xyz_top (or _lower/_upper) become one two-high block; a lone texture is used for both halves */
+  const tall=list.filter(x=>x.kind==='tall'),tById=new Map(tall.map(x=>[x.id,x])),tUsed=new Set();
+  for(const x of tall){
+    const m=/^(.*)_(top|upper)$/.exec(x.id);if(!m)continue;
+    const low=tById.get(m[1]+'_'+(m[2]==='top'?'bottom':'lower'));if(!low)continue;
+    tUsed.add(x.id);tUsed.add(low.id);
+    push(m[1],titleCase(m[1]),'tall',{side:useTex(low),up:useTex(x)},RM_AT_LEAST_ALPHA(RM_RANK[x.rm]>RM_RANK[low.rm]?x.rm:low.rm),'nature','grass');
+  }
+  for(const x of tall)if(!tUsed.has(x.id)){const t=useTex(x);push(x.id,titleCase(x.id),'tall',{side:t,up:t},RM_AT_LEAST_ALPHA(x.rm),'nature','grass');}
+  return{blocks,textures,skipped};
+}
+function planReplace(entries){
+  const matches=[],unmatched=[],byFile=new Map(),dupes=[];
+  for(const e of entries){
+    const f=nativeFile(e.stem);
+    if(!f){unmatched.push(e.stem);continue;}
+    if(byFile.has(f))dupes.push(e.stem+' → '+f);
+    byFile.set(f,e);
+  }
+  for(const[file,e]of byFile)matches.push({file,e});
+  return{matches,unmatched,dupes};
+}
+
+/* ---------- build ---------- */
+function manifests(packName,folder,hasBP,hasRP,minEngine,desc){
+  const seed=packName+'|';
+  const rpU=uuidFor(seed+'rp'),rpM=uuidFor(seed+'rp-module'),bpU=uuidFor(seed+'bp'),bpM=uuidFor(seed+'bp-module');
+  const meta={authors:['Texture Shift'],product_type:'addon'};
+  const out={};
+  if(hasBP)out.bp={format_version:2,header:{name:packName+' BP',description:desc,uuid:bpU,version:[1,0,0],min_engine_version:minEngine},modules:[{description:'Behavior data',type:'data',uuid:bpM,version:[1,0,0]}],dependencies:hasRP?[{uuid:rpU,version:[1,0,0]}]:[],metadata:meta};
+  if(!hasRP)return out;
+  const hdr={name:packName+(hasBP?' RP':''),description:desc,uuid:rpU,version:[1,0,0],min_engine_version:minEngine};
+  if(hasBP)hdr.pack_scope='world';
+  out.rp={format_version:2,header:hdr,modules:[{description:'Textures',type:'resources',uuid:rpM,version:[1,0,0]}],metadata:meta};
+  if(hasBP)out.rp.dependencies=[{uuid:bpU,version:[1,0,0]}];
+  return out;
+}
+async function uniquePngs(textures){
+  /* identical pixels are stored once */
+  const files=new Map(),byHash=new Map(),keyOf=new Map();
+  for(const[id,e]of textures){
+    const png=await encodePng(e.rgba,e.w,e.h),h=crc32(png)+':'+png.length;
+    let hit=null;
+    for(const c of byHash.get(h)||[]){if(c.png.length===png.length&&c.png.every((v,i)=>v===png[i])){hit=c;break;}}
+    if(hit)keyOf.set(id,hit.id);
+    else{const c={id,png};(byHash.get(h)||byHash.set(h,[]).get(h)).push(c);files.set(id,png);keyOf.set(id,id);}
+  }
+  return{files,keyOf};
+}
+async function iconFor(entries){
+  const e=entries[0];
+  return encodePng(upscale(e.rgba,e.w,e.h,64),64,64);
+}
+/* New custom blocks -> .mcaddon file list */
+async function buildAddon(entries,o){
+  if(!validNs(o.namespace))throw new Error('The namespace must be 1 to 16 lowercase letters, digits or underscores, and cannot be "minecraft".');
+  const plan=planNew(entries,o);
+  if(!plan.blocks.length)throw new Error('Nothing to build: no block was selected.');
+  const name=String(o.packName||'Texture Shift').trim()||'Texture Shift',folder=packFolder(name),ns=o.namespace;
+  const cornerStairs=!!o.cornerStairs;
+  /* the pack asks for at least the newest block format any of its blocks is written in */
+  const fvOf=b=>b.shape==='stairs'?(cornerStairs?FV.stairCorner:FV.stair):FV[b.shape==='faces'?'faces':b.shape]||FV.cube;
+  let minEngine=[0,0,0];
+  for(const b of plan.blocks){const v=fvOf(b).split('.').map(Number);for(let i=0;i<3;i++){if(v[i]>minEngine[i]){minEngine=v;break;}if(v[i]<minEngine[i])break;}}
+  const{files:pngFiles,keyOf}=await uniquePngs(plan.textures);
+  /* every block points at the stored copy of its texture */
+  for(const b of plan.blocks)for(const k of Object.keys(b.faces))b.faces[k]=keyOf.get(b.faces[k]);
+  const used=new Set();for(const b of plan.blocks)for(const v of Object.values(b.faces))used.add(v);
+  const man=manifests(name,folder,true,true,minEngine,'Built with Texture Shift');
+  const bp=folder+'_behavior_pack/',rp=folder+'_resource_pack/',files=[];
+  files.push({name:bp+'manifest.json',data:utf8(JSON.stringify(man.bp,null,2))});
+  const sorted=plan.blocks.slice().sort((a,b)=>a.shape.localeCompare(b.shape)||a.id.localeCompare(b.id));
+  for(const b of sorted)files.push({name:bp+'blocks/'+b.id+'.json',data:jsonMin(blockDoc(b,ns,{cornerStairs}))});
+  files.push({name:rp+'manifest.json',data:utf8(JSON.stringify(man.rp,null,2))});
+  const bj={format_version:'1.19.30'};for(const b of sorted)bj[ns+':'+b.id]={sound:b.sound};
+  files.push({name:rp+'blocks.json',data:jsonMin(bj)});
+  const td={};for(const k of[...used].sort())td['texture/'+k]={textures:'textures/blocks/'+k};
+  files.push({name:rp+'textures/terrain_texture.json',data:jsonMin({resource_pack_name:name,texture_name:'atlas.terrain',texture_data:td})});
+  for(const k of[...used].sort())files.push({name:rp+'textures/blocks/'+k+'.png',data:pngFiles.get(k)});
+  files.push({name:rp+'texts/en_US.lang',data:utf8(sorted.map(b=>`tile.${ns}:${b.id}.name=${b.title}`).join('\n')+'\n')});
+  files.push({name:rp+'texts/languages.json',data:jsonMin(['en_US'])});
+  for(const g of geometryFiles(plan.blocks,ns,{cornerStairs}))files.push({name:rp+g.name,data:g.data});
+  const icon=await iconFor(entries);files.push({name:bp+'pack_icon.png',data:icon},{name:rp+'pack_icon.png',data:icon});
+  return{files,plan,minEngine,textureFiles:pngFiles.size,folder,kind:'addon'};
+}
+/* Replace the game's own textures -> resource pack file list */
+async function buildReplacePack(entries,o){
+  const plan=planReplace(entries);
+  if(!plan.matches.length)throw new Error('None of these names match a block texture the game uses, so there is nothing to replace.');
+  const name=String(o.packName||'Texture Shift').trim()||'Texture Shift',folder=packFolder(name);
+  const man=manifests(name,folder,false,true,MIN_ENGINE_BASE,'Built with Texture Shift');
+  const rp='',files=[{name:rp+'manifest.json',data:utf8(JSON.stringify(man.rp,null,2))}];
+  for(const m of plan.matches.sort((a,b)=>a.file.localeCompare(b.file))){
+    files.push({name:rp+'textures/blocks/'+m.file+'.png',data:await encodePng(m.e.rgba,m.e.w,m.e.h)});
+  }
+  files.push({name:rp+'pack_icon.png',data:await iconFor(plan.matches.map(m=>m.e))});
+  return{files,plan,minEngine:MIN_ENGINE_BASE,folder,kind:'resourcepack'};
+}
+return{LAYERS,buildAddon,buildReplacePack,planNew,planReplace,makeZipBytes,encodePng,nativeFile,renderMethodFor,groupFaces,sanitizeId,sanitizeNs,validNs,titleCase,uuidFor,blockDoc,geometryDoc,connectionCubes,stairCubes,faceUv,crc32,NATIVE_FILES,NATIVE_ALIAS,FV,upscale,HAVE_CS,zlibStored};
+})();
+/*EXPORT-END*/
+if(typeof module!=='undefined')module.exports=ExportCore;
+</script>
+
+<script>
 (function(){
 'use strict';
 const MAX=300,SLOTS=3,LETTERS=['A','B','C'],PREVIEW_MAX=128,PREVIEW_FAST=64,MAXJOBS=12,COMBINED_LIMIT=200*1024*1024;
@@ -1867,6 +2455,10 @@ async function runImport(files,label){
   summarize();
   renderRejected(res.rejected.length>0&&!res.accepted.length&&!res.matched.length);
   renderLib();
+  if(mode==='import'&&$('#impPlants').checked&&!res.stopped){
+    const can=lib.rejected.filter(r=>r.canForce&&(r.code==='shape'||r.code==='transparent'));
+    if(can.length)await forceRejected(can,null,true);
+  }
   return res;
 }
 function summarize(){
@@ -1923,21 +2515,23 @@ function renderRejected(open){
   }
   box.append(d);
 }
-async function forceRejected(list,btn){
+async function forceRejected(list,btn,auto){
   if(lib.importing){libMsg('An import is already running.',true);return;}
-  lib.importing=true;lib.stop=false;btn.disabled=true;
+  const prior=$('#libMsg').textContent;
+  lib.importing=true;lib.stop=false;if(btn)btn.disabled=true;
   $('#libBar').classList.add('busy');$('#libStop').style.display='';libMsg('Importing '+plural(list.length,'file')+' anyway…');
   let res;
   try{res=await ImportCore.forceImport(list,{decode:decodeBrowser,known:lib.known,stop:()=>lib.stop});}
   catch(e){libMsg('The import failed: '+(e&&e.message||e),true);res=null;}
   lib.importing=false;$('#libBar').classList.remove('busy');$('#libStop').style.display='none';
-  if(!res){btn.disabled=false;return;}
+  if(!res){if(btn)btn.disabled=false;return;}
   addItems(res.accepted);
   const gone=new Set(list);
   lib.rejected=lib.rejected.filter(r=>!gone.has(r)).concat(res.rejected);
   const still=res.rejected.length;
-  libMsg('Imported '+plural(res.accepted.length+res.matched.length,'texture')+' anyway.'+(still?' '+plural(still,'file')+' could not be used (not square, damaged or empty).':''),false);
-  renderRejected(true);renderLib();
+  if(auto)libMsg((prior?prior+' ':'')+'Also added '+plural(res.accepted.length+res.matched.length,'plant or cut-out shape')+'.',false);
+  else libMsg('Imported '+plural(res.accepted.length+res.matched.length,'texture')+' anyway.'+(still?' '+plural(still,'file')+' could not be used (not square, damaged or empty).':''),false);
+  renderRejected(!auto);renderLib();
 }
 
 /* ----- browsing: sort, group, select ----- */
@@ -1991,6 +2585,7 @@ function buildGroups(){
 /* which library textures are already in the current job: O = to change, A/B/C = targets */
 function membership(){
   const m=new Map();
+  if(mode==='import'){for(const x of mc.items)if(x.it)m.set(x.it.uid,'✓');return m;}
   const add=(list,ch)=>{for(const e of list)m.set(e.id,(m.get(e.id)||'')+ch);};
   if(J){add(J.sources,'O');for(let k=0;k<SLOTS;k++)add(J.targets[k],LETTERS[k]);}
   return m;
@@ -2071,7 +2666,8 @@ function updateSelection(){
   $('#grpFold').style.display=grouped?'':'none';
   const anyOpen=lib.groups.some(g=>{const k=lib.group+'|'+g.key;return lib.open.has(k)?lib.open.get(k):(lib.view.length<=GROUP_CAP||lib.groups.length===1);});
   $('#grpFold').textContent=anyOpen?'Collapse all':'Expand all';
-  for(const id of['addSrc','addT0','addT1','addT2','libRemove'])$('#'+id).disabled=!n;
+  $('#selCount3').textContent=fmt(n)+' texture'+(n===1?'':'s');
+  for(const id of['addSrc','addT0','addT1','addT2','libRemove','mcAddAuto','mcAddBlock','mcAddPlant','mcAddTall'])$('#'+id).disabled=!n;
 }
 let qTimer=0;
 $('#libQ').addEventListener('input',()=>{clearTimeout(qTimer);qTimer=setTimeout(()=>{lib.q=$('#libQ').value;lib.gshown.clear();renderLib();},150);});
@@ -2374,7 +2970,7 @@ async function run(){
   if(!work.length)return;
   running=true;stopFlag=false;armedDelete=0;renderJobBar();
   for(const u of urls)URL.revokeObjectURL(u);urls=[];
-  $('#done').style.display='none';
+  $('#done').style.display='none';$('#sendMcWrap').style.display='none';exRetained=0;
   const bar=$('#bar'),fill=bar.firstElementChild;bar.style.display='block';fill.style.width='0';
   const total=work.reduce((s,j)=>s+readyCount(j),0);
   let done=0;
@@ -2399,7 +2995,9 @@ async function run(){
           let name=p.src.name.replace(/\.[^.]+$/,'')+'.png',m=2;
           while(used.has(name.toLowerCase()))name=p.src.name.replace(/\.[^.]+$/,'')+'_'+(m++)+'.png';
           used.add(name.toLowerCase());
-          files.push({name,data:png});
+          const stem=name.replace(/\.png$/i,''),px=res.data.length;
+          let keep=null;if(exRetained+px<=EX_BUDGET){keep=res.data;exRetained+=px;}
+          files.push({name,data:png,stem,w:S.width,h:S.height,rgba:keep});
         }
       }catch(e){problems.push(p.src.name+': '+e.message);}
       done++;fill.style.width=Math.round(done/total*100)+'%';
@@ -2433,9 +3031,239 @@ async function run(){
   const probs=results.reduce((s,r)=>s+r.problems.length,0);
   d.append(el('p',null,(stopFlag?'Stopped early. ':'')+'Files keep the original names, so they drop straight over the old ones.'+(probs?' '+probs+' skipped: '+results.flatMap(r=>r.problems).slice(0,3).join('; ')+(probs>3?'…':''):'')));
   d.style.display='block';
+  setExportFiles(ok);
   $('#status').textContent='Done.';
 }
 $('#start').addEventListener('click',()=>{if(running){stopFlag=true;}else run();});
+
+/* ---------- the two modes: Import items / Edit textures ---------- */
+let mode='import';
+const MODEKEY='texture_shift_mode_v1';
+function setMode(m,keepScroll){
+  mode=m==='edit'?'edit':'import';
+  document.body.classList.toggle('mode-import',mode==='import');document.body.classList.toggle('mode-edit',mode==='edit');
+  for(const[id,k]of[['tabImport','import'],['tabEdit','edit']]){const b=$('#'+id);b.classList.toggle('on',mode===k);b.setAttribute('aria-selected',mode===k?'true':'false');}
+  $(mode==='import'?'#libMountImport':'#libMountEdit').append($('#libWrap'));
+  try{localStorage.setItem(MODEKEY,mode);}catch(e){}
+  renderLib(true);
+  if(!keepScroll)window.scrollTo(0,0);
+}
+$('#tabImport').addEventListener('click',()=>setMode('import'));
+$('#tabEdit').addEventListener('click',()=>setMode('edit'));
+
+/* ---------- Minecraft pack (Import items) ---------- */
+const EX_BUDGET=96*1024*1024;let exRetained=0,exMode='blocks',exBusy=false,lastResults=[];
+const EXKEY='texture_shift_export_v1',VAR_KEYS=['cube','slab','stairs','fence','wall','eighth','quarter','three_eighths','three_quarters'];
+const MC_MAX=2000;
+const mc={items:[],byId:new Map(),shown:150,urls:[]};
+const KIND_LABEL={block:'Block',plant:'Plant',tall:'Tall plant'};
+const PLANT_RE=/(sapling|flower|tulip|orchid|allium|bluet|cornflower|dandelion|poppy|lily|rose|peony|lilac|fern|grass|bush|vine|mushroom|roots|sprouts|fungus|crop|wheat|carrots|potatoes|beetroots|seagrass|kelp|bamboo|cane|reeds|sunflower|pitcher|torchflower|petals|weeds|shrub|plant)/;
+const NOT_PLANT_RE=/(block|planks|log|wood|brick|stone|dirt|carpet|path|side$|snow|nylium|wart|crate|farmland)/;
+function guessKind(stem){
+  const s=stem.toLowerCase(),core=s.replace(/_(top|bottom|upper|lower)$/,'');
+  if(!PLANT_RE.test(core)||NOT_PLANT_RE.test(core))return'block';
+  return core!==s?'tall':'plant';
+}
+function exVariants(){const v={};for(const k of VAR_KEYS)v[k]=$('#exV_'+k).checked;return v;}
+function exSavePrefs(){try{localStorage.setItem(EXKEY,JSON.stringify({mode:exMode,name:$('#exName').value,ns:$('#exNs').value,nsTouched:!!$('#exNs').dataset.touched,v:exVariants(),corner:$('#exCorner').checked}));}catch(e){}}
+function exLoadPrefs(){
+  try{
+    const p=JSON.parse(localStorage.getItem(EXKEY)||'null');if(!p)return;
+    if(p.name)$('#exName').value=String(p.name).slice(0,40);
+    if(p.ns){$('#exNs').value=String(p.ns).slice(0,16);if(p.nsTouched)$('#exNs').dataset.touched='1';}
+    if(p.v)for(const k of VAR_KEYS)if(k in p.v)$('#exV_'+k).checked=!!p.v[k];
+    $('#exCorner').checked=!!p.corner;
+    exMode=p.mode==='replace'?'replace':'blocks';
+  }catch(e){}
+}
+const EX_STUB=new Uint8Array([0,0,0,255]);
+function exStubEntries(){return mc.items.map(m=>({stem:m.stem,w:m.w,h:m.h,rgba:EX_STUB,cat:'',kind:m.kind}));}
+
+/* the list */
+function mcCounts(){const c={block:0,plant:0,tall:0};for(const m of mc.items)c[m.kind]++;return c;}
+function mcHead(){
+  const n=mc.items.length,c=mcCounts(),bits=[];
+  if(c.block)bits.push(plural(c.block,'block texture'));
+  if(c.plant)bits.push(plural(c.plant,'plant'));
+  if(c.tall)bits.push(plural(c.tall,'tall plant texture'));
+  $('#mcCount').textContent=n?bits.join(' · '):'';
+  $('#mcEmpty').style.display=n?'none':'';$('#mcTools').style.display=n?'':'none';
+}
+function mcRender(){
+  mcHead();
+  const list=$('#mcList');list.textContent='';
+  const frag=document.createDocumentFragment(),n=Math.min(mc.shown,mc.items.length);
+  for(let i=0;i<n;i++){
+    const m=mc.items[i],row=el('div','mcrow');
+    const img=document.createElement('img');img.alt='';img.src=m.it?entryFor(m.it).thumb:m.thumbURL;
+    const nm=el('div','mcn');nm.append(el('b',null,m.stem),el('small',null,m.w+'×'+m.h));
+    const sel=document.createElement('select');sel.setAttribute('aria-label','Kind of '+m.stem);
+    for(const k of['block','plant','tall'])sel.add(new Option(KIND_LABEL[k],k));
+    sel.value=m.kind;
+    sel.addEventListener('change',()=>{m.kind=sel.value;mcHead();exRefresh();});
+    const x=el('button','ghost sm','✕');x.type='button';x.setAttribute('aria-label','Remove '+m.stem);
+    x.addEventListener('click',()=>mcRemove(m));
+    row.append(img,nm,sel,x);frag.append(row);
+  }
+  if(mc.items.length>n){const b=el('button','ghost more','Show more ('+fmt(mc.items.length-n)+' left)');b.type='button';b.addEventListener('click',()=>{mc.shown+=150;mcRender();});frag.append(b);}
+  list.append(frag);
+  exRefresh();
+}
+function mcPush(m){
+  if(mc.byId.has(m.id))return false;
+  mc.items.push(m);mc.byId.set(m.id,m);return true;
+}
+function mcRemove(m){
+  mc.items=mc.items.filter(x=>x!==m);mc.byId.delete(m.id);
+  if(m.thumbURL){URL.revokeObjectURL(m.thumbURL);}
+  mcRender();if(mode==='import')renderLib(true);
+}
+function addToPack(kindMode){
+  const items=lib.items.filter(it=>lib.sel.has(it.uid));
+  let added=0,dup=0,over=0;
+  for(const it of items){
+    if(mc.byId.has(it.uid)){dup++;continue;}
+    if(mc.items.length>=MC_MAX){over++;continue;}
+    mcPush({id:it.uid,stem:it.stem,w:it.w,h:it.h,kind:kindMode==='auto'?guessKind(it.stem):kindMode,it});added++;
+  }
+  lib.sel.clear();mcRender();renderLib(true);
+  libMsg('Added '+plural(added,'texture')+' to the Minecraft pack.'+(dup?' '+plural(dup,'texture')+' were already there.':'')+(over?' '+plural(over,'texture')+' did not fit (the pack holds '+fmt(MC_MAX)+').':''),over>0);
+}
+$('#mcAddAuto').addEventListener('click',()=>addToPack('auto'));
+$('#mcAddBlock').addEventListener('click',()=>addToPack('block'));
+$('#mcAddPlant').addEventListener('click',()=>addToPack('plant'));
+$('#mcAddTall').addEventListener('click',()=>addToPack('tall'));
+function mcSetAll(k){for(const m of mc.items)m.kind=k==='auto'?guessKind(m.stem):k;mcRender();}
+$('#mcAllAuto').addEventListener('click',()=>mcSetAll('auto'));
+$('#mcAllBlock').addEventListener('click',()=>mcSetAll('block'));
+$('#mcAllPlant').addEventListener('click',()=>mcSetAll('plant'));
+$('#mcAllTall').addEventListener('click',()=>mcSetAll('tall'));
+$('#mcClear').addEventListener('click',()=>{
+  for(const m of mc.items)if(m.thumbURL)URL.revokeObjectURL(m.thumbURL);
+  mc.items=[];mc.byId.clear();mc.shown=150;$('#exOut').textContent='';mcRender();if(mode==='import')renderLib(true);
+});
+
+/* converted results -> pack */
+function addResultsToPack(){
+  let added=0,over=0;
+  for(const r of lastResults)for(const f of r.files){
+    if(mc.items.length>=MC_MAX){over++;continue;}
+    const id='res:'+r.folder+'/'+f.name,thumbURL=URL.createObjectURL(new Blob([f.data],{type:'image/png'}));
+    if(mcPush({id,stem:f.stem,w:f.w,h:f.h,kind:'block',f,thumbURL}))added++;else URL.revokeObjectURL(thumbURL);
+  }
+  mcRender();setMode('import',true);
+  $('#mcCard').scrollIntoView({behavior:'smooth',block:'start'});
+  libMsg('Added '+plural(added,'converted texture')+' to the Minecraft pack below.'+(over?' '+plural(over,'texture')+' did not fit.':''),false);
+}
+$('#sendMc').addEventListener('click',addResultsToPack);
+function setExportFiles(okResults){
+  lastResults=okResults;
+  const n=okResults.reduce((s,r)=>s+r.files.length,0);
+  $('#sendMcWrap').style.display=n?'block':'none';
+  $('#sendMcInfo').textContent=n?'Want these in Minecraft? Send the '+plural(n,'converted texture')+' to the Import items tab to make blocks or a resource pack from them.':'';
+}
+
+/* the build card */
+function exLayout(){
+  const blocks=exMode==='blocks';
+  $('#exBlocks').classList.toggle('on',blocks);$('#exReplace').classList.toggle('on',!blocks);
+  $('#exBlockOpts').style.display=blocks?'':'none';
+  $('#exInfo').textContent=blocks
+    ?'Makes custom blocks you can build with: your textures as full blocks and any shapes ticked below, plants, and tall plants. Gives you one add-on file to open in Minecraft.'
+    :'Swaps the game\'s own block textures for yours, matched by name (Java names like oak_planks are understood). Gives you a resource pack. Kinds are ignored here.';
+  $('#exCornerRow').style.opacity=$('#exV_stairs').checked?'1':'.45';
+  $('#exCorner').disabled=!$('#exV_stairs').checked;
+  $('#exBuild').textContent=blocks?'Build add-on':'Build resource pack';
+}
+function exSummary(){
+  const box=$('#exSummary');box.className='';
+  const n=mc.items.length;
+  if(!n){box.textContent='Add textures to the pack above first.';$('#exBuild').disabled=true;return;}
+  if(exMode==='blocks'){
+    const ns=$('#exNs').value.trim(),v=exVariants();
+    if(!EC.validNs(ns)){box.textContent='The namespace needs 1 to 16 lowercase letters, digits or underscores (and cannot be "minecraft").';box.className='bad';$('#exBuild').disabled=true;return;}
+    const c=mcCounts();
+    if(!Object.values(v).some(Boolean)&&!c.plant&&!c.tall){box.textContent='Tick at least one block type.';box.className='bad';$('#exBuild').disabled=true;return;}
+    const plan=EC.planNew(exStubEntries(),{namespace:ns,variants:v});
+    const by={};for(const b of plan.blocks)by[b.shape]=(by[b.shape]||0)+1;
+    const bits=[];const solid=plan.blocks.length-(by.plant||0)-(by.tall||0);
+    if(solid)bits.push(plural(solid,'block'));if(by.plant)bits.push(plural(by.plant,'plant'));if(by.tall)bits.push(plural(by.tall,'tall plant'));
+    box.textContent=(plan.blocks.length?bits.join(' + ')+' will be made from '+plural(n,'texture')+'.':'Nothing would be made with these settings.')
+      +(plan.skipped.length?' '+plan.skipped.length+' skipped (names).':'');
+    $('#exBuild').disabled=exBusy||!plan.blocks.length;
+  }else{
+    const pr=EC.planReplace(exStubEntries());
+    box.textContent=pr.matches.length+' of '+n+' match a block texture the game already has'
+      +(pr.unmatched.length?'. No match: '+pr.unmatched.slice(0,6).join(', ')+(pr.unmatched.length>6?' and '+(pr.unmatched.length-6)+' more':''):'')
+      +(pr.dupes.length?'. '+pr.dupes.length+' name'+(pr.dupes.length===1?'':'s')+' point at the same file; the last one wins':'')+'.';
+    if(!pr.matches.length)box.className='bad';
+    $('#exBuild').disabled=exBusy||!pr.matches.length;
+  }
+}
+function exRefresh(){exLayout();exSummary();}
+async function exRgba(f){
+  if(f.rgba)return f.rgba;
+  const bmp=await createImageBitmap(new Blob([f.data],{type:'image/png'}));
+  const c=document.createElement('canvas');c.width=bmp.width;c.height=bmp.height;
+  const x=c.getContext('2d');x.drawImage(bmp,0,0);
+  return x.getImageData(0,0,c.width,c.height).data;
+}
+async function mcPixels(m){
+  if(m.f)return{rgba:await exRgba(m.f),w:m.w,h:m.h};
+  const r=await m.it.load();
+  return{rgba:r.data,w:r.w,h:r.h};
+}
+async function buildExport(){
+  if(exBusy||!mc.items.length)return;
+  exBusy=true;$('#exBuild').disabled=true;$('#exOut').textContent='';
+  const out=$('#exOut'),note=t=>{$('#exSummary').textContent=t;$('#exSummary').className='';};
+  try{
+    const entries=[];
+    for(let i=0;i<mc.items.length;i++){
+      const m=mc.items[i];
+      note('Preparing textures… '+(i+1)+' / '+mc.items.length);
+      const px=await mcPixels(m);
+      entries.push({stem:m.stem,w:px.w,h:px.h,rgba:px.rgba,cat:ImportCore.categorize(m.stem),kind:m.kind});
+      if(i%25===24)await new Promise(r=>setTimeout(r,0));
+    }
+    note('Building…');
+    const name=$('#exName').value.trim()||'Texture Shift';
+    const r=exMode==='blocks'
+      ?await EC.buildAddon(entries,{namespace:$('#exNs').value.trim(),packName:name,variants:exVariants(),cornerStairs:$('#exCorner').checked&&$('#exV_stairs').checked})
+      :await EC.buildReplacePack(entries,{packName:name});
+    const bytes=await EC.makeZipBytes(r.files);
+    const ext=r.kind==='addon'?'.mcaddon':'.mcpack',fname=safeName(r.folder,'Texture Shift')+ext;
+    for(const u of mcBuildUrls)URL.revokeObjectURL(u);mcBuildUrls=[];
+    const u=URL.createObjectURL(new Blob([bytes],{type:'application/octet-stream'}));mcBuildUrls.push(u);
+    const a=document.createElement('a');a.href=u;a.download=fname;
+    const kb=bytes.length<1048576?Math.max(1,Math.round(bytes.length/1024))+' KB':(bytes.length/1048576).toFixed(1)+' MB';
+    a.textContent='Download '+fname+' ('+kb+')';out.append(a);
+    const bits=[];
+    if(r.kind==='addon'){
+      bits.push(r.plan.blocks.length+' blocks, '+r.textureFiles+' texture file'+(r.textureFiles===1?'':'s')+(r.textureFiles<r.plan.textures.size?' (identical textures are stored once)':'')+'.');
+      bits.push('Open the file with Minecraft, then switch on both of its packs for your world.');
+      bits.push('Needs Minecraft '+r.minEngine.join('.')+' or newer.');
+    }else{
+      bits.push(r.plan.matches.length+' texture'+(r.plan.matches.length===1?'':'s')+' replaced.'+(r.plan.unmatched.length?' Left out (no matching game texture): '+r.plan.unmatched.slice(0,5).join(', ')+(r.plan.unmatched.length>5?'…':'')+'.':''));
+      bits.push('Open the file with Minecraft, then turn the pack on.');
+    }
+    if(r.plan&&r.plan.skipped&&r.plan.skipped.length)bits.push('Skipped: '+r.plan.skipped.slice(0,3).map(x=>x.name+' ('+x.why+')').join('; ')+'.');
+    out.append(el('p',null,bits.join(' ')));
+  }catch(e){out.append(el('p',null,e.message));}
+  finally{exBusy=false;exSummary();}
+}
+let mcBuildUrls=[];
+const EC=ExportCore;
+exLoadPrefs();
+$('#exBlocks').addEventListener('click',()=>{exMode='blocks';exSavePrefs();exRefresh();});
+$('#exReplace').addEventListener('click',()=>{exMode='replace';exSavePrefs();exRefresh();});
+$('#exName').addEventListener('input',()=>{const ns=$('#exNs');if(!ns.dataset.touched)ns.value=EC.sanitizeNs($('#exName').value)||'tshift';exSavePrefs();exSummary();});
+$('#exNs').addEventListener('input',()=>{const ns=$('#exNs');ns.dataset.touched='1';ns.value=ns.value.toLowerCase().replace(/[^a-z0-9_]/g,'');exSavePrefs();exSummary();});
+for(const k of VAR_KEYS)$('#exV_'+k).addEventListener('change',()=>{exSavePrefs();exRefresh();});
+$('#exCorner').addEventListener('change',exSavePrefs);
+$('#exBuild').addEventListener('click',buildExport);
+
+
 
 /* ---------- slider help (hidden by default so the page stays short) ---------- */
 const HK='texture_shift_help_v1';
@@ -2445,10 +3273,12 @@ $('#helpToggle').addEventListener('change',()=>{const on=$('#helpToggle').checke
 applyHelp(helpOn());
 
 /* ---------- start ---------- */
+let startMode='import';try{startMode=localStorage.getItem(MODEKEY)==='edit'?'edit':'import';}catch(e){}
 jobs=[newJob()];J=jobs[0];
 fillPresetSelect('');
 showJob();
-renderLib();
+mcRender();
+setMode(startMode,true);
 })();
 </script>
 </body>
