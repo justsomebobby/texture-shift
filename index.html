@@ -196,6 +196,9 @@ body.mode-import .libh{display:none}
 .mrow span{flex:1;min-width:0}
 .mrow b{font-weight:600;word-break:break-all}
 .mrow small{display:block;color:var(--dim);font-size:11px}
+.mrow.sub{padding-left:28px}
+.mrow.fam{background:rgba(127,127,127,.08);border-radius:8px;padding:7px 8px;margin-top:4px}
+.mrow .tog{flex:none;padding:6px 10px;font-size:12px;min-height:0}
 .mset .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .mset .acts button{padding:8px 10px;font-size:13px}
 .mset .seg{margin-top:8px}
@@ -2676,6 +2679,23 @@ function statusOf(repairs){
   return repairs.some(r=>APPROX.includes(r))?'approximate':'repaired';
 }
 
+/* ---- families: stone, stone_slab, stone_stairs, stone_wall... are one block shown once ---- */
+const SHAPE_WORDS=new Set(['stairs','stair','slab','slabs','wall','fence','gate','pillar','corner','step','steps','button','plate','pressure','trapdoor','door','half','quarter','eighth','layer','layers','post','pane','bars','vertical','horizontal','outer','inner','straight','top','bottom','upper','lower','left','right','mid','middle']);
+function familyOf(id){
+  const t=String(id).split('_');
+  /* trailing variant numbers/letters and shape words, but always keep the first word */
+  while(t.length>1){
+    const w=t[t.length-1];
+    if(/^\d+$/.test(w)||/^[a-d]$/.test(w)||SHAPE_WORDS.has(w))t.pop();else break;
+  }
+  return t.join('_');
+}
+function groupFamilies(blocks){
+  const m=new Map();
+  for(const b of blocks){const k=familyOf(b.id);let g=m.get(k);if(!g){g={key:k,members:[]};m.set(k,g);}g.members.push(b);}
+  for(const g of m.values())for(const b of g.members){{const p=b.id===g.key?'base':b.id.slice(g.key.length+1)||'base';b.part=/^\d+$/.test(p)?'variant '+p:p;}}
+  return[...m.values()];
+}
 /* ---- scan one archive ---- */
 async function scanArchive(archive,opt){
   opt=opt||{};
@@ -2826,7 +2846,7 @@ async function loadTextures(scan,blocks,decode,nativeFile){
   }
   return{textures:out,native,missing:miss,tint};
 }
-return{flipPixels,statusOf,directionInfo,scanArchive,loadTextures,resolveModel,defaultUv,rotatePixels,VANILLA,fitCubes,boxesFor,texKey,sid,tintFor,extents,MAX_INSTANCES};
+return{familyOf,groupFamilies,flipPixels,statusOf,directionInfo,scanArchive,loadTextures,resolveModel,defaultUv,rotatePixels,VANILLA,fitCubes,boxesFor,texKey,sid,tintFor,extents,MAX_INSTANCES};
 })();
 </script>
 
@@ -3738,7 +3758,7 @@ async function scanModels(files){
 /* repaired and approximate shapes wait for approval; clean ones go straight to the shape library */
 function newSet(name,scan){
   const lib=new Set();for(const b of scan.blocks)if(b.status==='clean')lib.add(b.id);
-  return{name,scan,q:'',lib,sel:new Set(),tab:'lib',shown:100};
+  return{name,scan,q:'',lib,sel:new Set(),tab:'lib',shown:100,open:new Set()};
 }
 const tabList=(set,tab)=>set.scan.blocks.filter(b=>tab==='lib'?set.lib.has(b.id):!set.lib.has(b.id));
 function mdlFiltered(set,tab){const q=set.q.trim().toLowerCase();return tabList(set,tab||set.tab).filter(b=>!q||b.id.includes(q)||b.name.toLowerCase().includes(q));}
@@ -3755,29 +3775,46 @@ function renderModels(){
     seg.append(tb('lib','Shape library ('+fmt(nLib)+')'),tb('review','Needs review ('+fmt(nPend)+')'));w.append(seg);
     const q=document.createElement('input');q.type='search';q.placeholder='Filter by name';q.value=set.q;q.setAttribute('aria-label','Filter shapes');
     const list=el('div','mrows'),acts=el('div','acts');
+    const rank={clean:0,repaired:1,approximate:2};
+    const memberRow=(b,sub)=>{
+      const row=el('label','mrow'+(sub?' sub':'')),cb=document.createElement('input');cb.type='checkbox';cb.checked=set.sel.has(b.id);
+      cb.addEventListener('change',()=>{if(cb.checked)set.sel.add(b.id);else set.sel.delete(b.id);fill();});
+      const sp=el('span');sp.append(el('b',null,sub?b.part:b.id));
+      const note=[];if(b.status!=='clean')note.push(b.status);if(b.dir)note.push(b.dir.six?'faces 6 ways':'faces 4 ways');
+      if(set.tab==='review')note.push(b.repairs.map(r=>REPAIR_TEXT[r]||r).join(', '));
+      if(note.length)sp.append(el('small',null,note.join(' · ')));
+      row.append(cb,sp);return row;
+    };
     const fill=()=>{
       list.textContent='';acts.textContent='';
-      const items=mdlFiltered(set),n=Math.min(set.shown,items.length),frag=document.createDocumentFragment();
-      for(const b of items.slice(0,n)){
-        const row=el('label','mrow'),cb=document.createElement('input');cb.type='checkbox';cb.checked=set.sel.has(b.id);
-        cb.addEventListener('change',()=>{if(cb.checked)set.sel.add(b.id);else set.sel.delete(b.id);fillActs();});
-        const sp=el('span');sp.append(el('b',null,b.id));
-        const note=[];if(b.status!=='clean')note.push(b.status);if(b.dir)note.push(b.dir.six?'faces 6 ways':'faces 4 ways');
-        if(set.tab==='review')note.push(b.repairs.map(r=>REPAIR_TEXT[r]||r).join(', '));
-        if(note.length)sp.append(el('small',null,note.join(' · ')));
-        row.append(cb,sp);frag.append(row);
+      const items=mdlFiltered(set),fams=ModelCore.groupFamilies(items),n=Math.min(set.shown,fams.length),frag=document.createDocumentFragment();
+      for(const g of fams.slice(0,n)){
+        if(g.members.length===1){frag.append(memberRow(g.members[0],false));continue;}
+        const ids=g.members.map(b=>b.id),on=ids.filter(id=>set.sel.has(id)).length;
+        const row=el('label','mrow fam'),cb=document.createElement('input');cb.type='checkbox';cb.checked=on===ids.length;cb.indeterminate=on>0&&on<ids.length;
+        cb.addEventListener('change',()=>{for(const id of ids){if(cb.checked)set.sel.add(id);else set.sel.delete(id);}fill();});
+        const sp=el('span');sp.append(el('b',null,g.key));
+        const worst=g.members.reduce((m,b)=>Math.max(m,rank[b.status]||0),0),parts=g.members.map(b=>b.part);
+        const note=[g.members.length+' pieces: '+parts.slice(0,5).join(', ')+(parts.length>5?' +'+(parts.length-5)+' more':'')];
+        if(worst)note.push('worst: '+(worst===2?'approximate':'repaired'));
+        if(g.members.some(b=>b.dir))note.push('can face different directions');
+        sp.append(el('small',null,note.join(' · ')));
+        const tg=el('button','ghost tog',set.open.has(g.key)?'Hide pieces':'Pick pieces');tg.type='button';
+        tg.addEventListener('click',e=>{e.preventDefault();if(set.open.has(g.key))set.open.delete(g.key);else set.open.add(g.key);fill();});
+        row.append(cb,sp,tg);frag.append(row);
+        if(set.open.has(g.key))for(const b of g.members)frag.append(memberRow(b,true));
       }
       if(!items.length)frag.append(el('div','st',set.tab==='lib'?'Nothing in the shape library yet.':'Nothing waiting for review.'));
-      if(items.length>n){const m=el('button','ghost more','Show more ('+fmt(items.length-n)+' left)');m.type='button';m.addEventListener('click',()=>{set.shown+=100;fill();});frag.append(m);}
+      if(fams.length>n){const m=el('button','ghost more','Show more ('+fmt(fams.length-n)+' left)');m.type='button';m.addEventListener('click',()=>{set.shown+=100;fill();});frag.append(m);}
       list.append(frag);fillActs();
     };
     const fillActs=()=>{
       acts.textContent='';
-      const items=mdlFiltered(set),nsel=[...set.sel].filter(id=>items.some(b=>b.id===id)).length;
+      const items=mdlFiltered(set),nsel=[...set.sel].filter(id=>items.some(b=>b.id===id)).length,nfam=ModelCore.groupFamilies(items).length;
       const btn=(t,fn,dis,pri)=>{const x=el('button',pri?'':'ghost',t);x.type='button';x.disabled=!!dis;x.addEventListener('click',fn);acts.append(x);};
-      btn('Select all '+fmt(items.length)+(set.q.trim()?' matching':''),()=>{for(const b of items)set.sel.add(b.id);fill();},!items.length);
+      btn('Select all '+fmt(nfam)+' block'+(nfam===1?'':'s')+' ('+fmt(items.length)+' pieces)'+(set.q.trim()?' matching':''),()=>{for(const b of items)set.sel.add(b.id);fill();},!items.length);
       btn('Clear',()=>{set.sel.clear();fill();},!set.sel.size);
-      if(set.tab==='lib')btn('Add '+fmt(nsel)+' to pack',()=>{addModels(set,items.filter(b=>set.sel.has(b.id)));},!nsel,true);
+      if(set.tab==='lib')btn('Add '+fmt(nsel)+' piece'+(nsel===1?'':'s')+' to pack',()=>{addModels(set,items.filter(b=>set.sel.has(b.id)));},!nsel,true);
       else{
         btn('Approve '+fmt(nsel)+' selected',()=>{for(const b of items)if(set.sel.has(b.id)){set.lib.add(b.id);set.sel.delete(b.id);}renderModels();},!nsel,true);
         const rep=items.filter(b=>b.status==='repaired').length,app=items.filter(b=>b.status==='approximate').length;
