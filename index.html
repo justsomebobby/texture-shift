@@ -1943,6 +1943,65 @@ function geometryDoc(id,cubes){
 }
 /* what a block needs to be standing next to: one fixed Bedrock recipe per kind of support.
    A face is the face of the neighbouring block it is placed against ("up" = on top of a block). */
+/* ---------- creative menu: every block gets a tab and, where it fits, a group ----------
+   A vanilla group puts the block next to the game's own blocks of that kind (stairs with stairs, planks with planks).
+   Anything else gets a group of its own named after its family, so related pieces sit together. The group has to belong to the tab. */
+const GTAB={construction:['planks','walls','fence','fenceGate','stairs','door','trapdoor','bars','glass','glassPane','slab','stoneBrick','sandstone','copper','wool','woolCarpet','concretePowder','concrete','stainedClay','glazedTerracotta'],
+  items:['bed','lanterns','candles','anvil','chest','shulkerBox','sign','hanging_sign','rail','buttons','pressurePlate','chains'],
+  nature:['ore','stone','log','wood','leaves','sapling','seed','crop','grass','flower','mushroom','coral','sculk']};
+const GROUP_TAB={};for(const[t,l]of Object.entries(GTAB))for(const g of l)GROUP_TAB[g]=t;
+/* what a texture category means for the menu */
+const CAT_GROUP={'Wool & carpet':'wool','Concrete':'concrete','Terracotta':'stainedClay','Glass':'glass','Planks':'planks','Logs & stems':'log','Leaves':'leaves','Ores':'ore','Copper':'copper','Bricks':'stoneBrick','Sandstone':'sandstone','Stone':'stone'};
+/* what the end of a name says: the game names its pieces "<material>_<piece>", so the last word is the piece */
+const LAST_WORD={stairs:'stairs',stair:'stairs',slab:'slab',slabs:'slab',wall:'walls',walls:'walls',fence:'fence',trapdoor:'trapdoor',door:'door',button:'buttons',pane:'glassPane',glass:'glass',lantern:'lanterns',torch:'lanterns',candle:'candles',candles:'candles',planks:'planks',leaves:'leaves',sapling:'sapling'};
+const PIECE_MODS=new Set(['inner','outer','straight','top','bottom','upper','lower','left','right','mid','middle','half','vertical','horizontal','corner','end','single','double','open','closed','on','off']);
+function nameGroup(id){
+  const t=String(id).split('_');
+  /* variant markers at the end (numbers, a/b/c, inner/outer/top/bottom…) are not the piece */
+  while(t.length>1&&(/^\d+$/.test(t[t.length-1])||/^[a-d]$/.test(t[t.length-1])||PIECE_MODS.has(t[t.length-1])))t.pop();
+  const last=t[t.length-1],prev=t[t.length-2];
+  if(last==='gate'&&prev==='fence')return'fenceGate';
+  if(last==='plate'&&prev==='pressure')return'pressurePlate';
+  return LAST_WORD[last]||null;
+}
+const PLANT_WORDS=[[/(^|_)sapling($|_)/,'sapling'],[/(^|_)mushroom($|_)/,'mushroom'],[/(^|_)(grass|fern|bush|shrub|vine|weeds?)($|_)/,'grass']];
+const mg=g=>'minecraft:itemGroup.name.'+g;
+function menuFor(b,ns){
+  const word=String(b.id);
+  const vanilla=g=>({category:GROUP_TAB[g],group:mg(g)});
+  if(b.menu)return b.menu;
+  switch(b.shape){
+    case'stairs':return vanilla('stairs');
+    case'slab':return vanilla('slab');
+    case'fence':return vanilla('fence');
+    case'wall':return vanilla('walls');
+    case'layer':return{category:'construction',group:ns+':itemGroup.name.layers'};
+    case'plant':case'tall':{
+      const g=(PLANT_WORDS.find(([re])=>re.test(word))||[0,'flower'])[1];
+      return vanilla(g);
+    }
+  }
+  if(b.cat&&CAT_GROUP[b.cat]&&['cube','faces','log'].includes(b.shape)){
+    let g=CAT_GROUP[b.cat];
+    if(g==='wool'&&/carpet/.test(word))g='woolCarpet';
+    if(g==='stainedClay'&&/glazed/.test(word))g='glazedTerracotta';
+    if(g==='glass'&&/pane/.test(word))g='glassPane';
+    if(g==='log'&&/(^|_)(wood|hyphae)($|_)/.test(word)&&!/log/.test(word))g='wood';
+    if(g==='stone'&&/brick/.test(word))g='stoneBrick';
+    return vanilla(g);
+  }
+  const hit=nameGroup(word);
+  if(hit)return vanilla(hit);
+  /* a model that is exactly a half block (a full footprint, half the height) is a slab whatever it is called */
+  const cb=b.boxes&&b.boxes.collision;
+  if((!b.shape||b.shape==='model')&&cb&&!Array.isArray(cb)&&cb.size[0]>=15.9&&cb.size[2]>=15.9&&Math.abs(cb.size[1]-8)<0.05&&Math.abs(cb.origin[1])<0.05)return vanilla('slab');
+  if((!b.shape||b.shape==='model')&&b.flip&&b.flip.mode==='half')return vanilla('slab');
+  /* no vanilla group: a family that has several pieces in this pack is a group of its own; a lone piece goes with its kind of block */
+  const tab=b.cat&&CATEGORY_NATURE.has(b.cat)?'nature':(b.category||'construction');
+  const slug=x=>String(x||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+  const fam=b.family&&b.famN>1?slug(b.family):(b.cat==='Other'?'':slug(b.cat));
+  return fam?{category:tab,group:ns+':itemGroup.name.'+fam}:{category:tab};
+}
 const SUPPORT={
   floor:[{allowed_faces:['up']}],
   floor_side:[{allowed_faces:['up','side']}],
@@ -1968,7 +2027,7 @@ function materials(b){
 }
 function blockDoc(b,ns,opt){
   const id=ns+':'+b.id;
-  const desc={menu_category:{category:b.category},identifier:id};
+  const desc={menu_category:menuFor(b,ns),identifier:id};
   const mat={'*':{texture:'texture/'+b.faces.side,render_method:b.render}};
   const geo=(k)=>geoId(ns,k);
   const out=(fv,description,components,permutations)=>{const bk={description,components};if(permutations&&permutations.length)bk.permutations=permutations;return{format_version:fv,'minecraft:block':bk};};
@@ -2081,7 +2140,7 @@ function modelBlockParts(b,ns,tex,nativeKeys,keyOf){
   const fv=up?MODEL_FV_TALL:multi?'1.26.0':b.dir?FV.dirModel:FV.model;
   const dirState=b.dir?(b.dir.six?'minecraft:facing_direction':'minecraft:cardinal_direction'):null;
   const altMode=b.flip&&b.flip.mode||'half',geoId0=geoId(ns,b.id),geoIdUp=geoId(ns,b.id+'_up'),geoIdTop=geoId(ns,b.id+altSuffix(b));
-  const doc={format_version:fv,'minecraft:block':{description:{identifier:ns+':'+b.id,menu_category:{category:'construction'}},components:{
+  const doc={format_version:fv,'minecraft:block':{description:{identifier:ns+':'+b.id,menu_category:menuFor(b,ns)},components:{
     'minecraft:geometry':geoId0,'minecraft:material_instances':lo.mi,
     'minecraft:collision_box':b.boxes.collision||false,'minecraft:selection_box':b.boxes.selection||{origin:[-8,0,-8],size:[16,16,16]}}}};
   const bk=doc['minecraft:block'];
@@ -2270,10 +2329,10 @@ function planNew(entries,o){
     if(u.up){faces.up=useTex(u.up);faces.down=useTex(u.down);}
     const cat=u.cat||'',category=catOf(cat,o.category||'construction'),sound=soundFor(cat,u.id);
     const ex=u.side.e.extra||{},want=k=>!!(variants[k]||ex[k]);
-    if(variants.cube!==false)push(u.id,titleCase(u.id),u.up?(u.axis?'log':'faces'):'cube',faces,u.render,category,sound);
+    if(variants.cube!==false)push(u.id,titleCase(u.id),u.up?(u.axis?'log':'faces'):'cube',faces,u.render,category,sound,{cat});
     const single=()=>({side:faces.side});
-    for(const sh of['slab','stairs','fence','wall'])if(want(sh)&&!u.id.endsWith(SHAPE_SUFFIX[sh]))push(u.id+SHAPE_SUFFIX[sh],titleCase(u.id+SHAPE_SUFFIX[sh]),sh,single(),u.render,category,sound);
-    for(const[k,L]of Object.entries(LAYERS))if(want(k)&&!u.id.endsWith(L.suffix))push(u.id+L.suffix,titleCase(u.id)+' '+L.label,'layer',single(),u.render,category,sound,{h:L.h});
+    for(const sh of['slab','stairs','fence','wall'])if(want(sh)&&!u.id.endsWith(SHAPE_SUFFIX[sh]))push(u.id+SHAPE_SUFFIX[sh],titleCase(u.id+SHAPE_SUFFIX[sh]),sh,single(),u.render,category,sound,{cat});
+    for(const[k,L]of Object.entries(LAYERS))if(want(k)&&!u.id.endsWith(L.suffix))push(u.id+L.suffix,titleCase(u.id)+' '+L.label,'layer',single(),u.render,category,sound,{h:L.h,cat});
   }
   /* plants: one cross-shaped, pottable block per texture */
   for(const x of list.filter(x=>x.kind==='plant'))
@@ -2349,6 +2408,14 @@ function selfCheck(files,folder,ns){
     const d=J(f.name),b=d['minecraft:block'];if(!b)fail(f.name+' has no block');
     const id=b.description&&b.description.identifier;
     if(!id||id.indexOf(ns+':')!==0)fail(f.name+' has a bad identifier');
+    const mc=b.description.menu_category;
+    if(!mc||!['construction','nature','equipment','items'].includes(mc.category))fail(id+' has no valid creative tab');
+    if(mc.group!==undefined){
+      if(typeof mc.group!=='string'||!mc.group)fail(id+' has a broken creative group');
+      const vg=/^minecraft:itemGroup\.name\.(\w+)$/.exec(mc.group);
+      if(vg&&GROUP_TAB[vg[1]]&&GROUP_TAB[vg[1]]!==mc.category)fail(id+' is in a group that belongs to another creative tab');
+      if(!vg&&mc.group.indexOf(ns+':itemGroup.name.')!==0)fail(id+' has a creative group that is not in its own namespace');
+    }
     if(seen.has(id))fail('two blocks share the identifier '+id);seen.add(id);
     if(!bj[id])fail(id+' is missing from blocks.json');
     walk(b,(k,v)=>{
@@ -2396,10 +2463,11 @@ async function buildAddon(entries,o){
   const mParts=[],mFailed=[],geoIds=new Set();
   if(mdl){
     /* a shape must never share a block id with another block in the pack (two files, one identifier) */
-    const taken=new Set(plan.blocks.map(b=>b.id));
+    const taken=new Set(plan.blocks.map(b=>b.id)),famCount=new Map();
+    for(const x of mdl.blocks)if(x.family)famCount.set(x.family,(famCount.get(x.family)||0)+1);
     for(const b0 of mdl.blocks){
-      let b=b0;
-      if(taken.has(b.id)){let id=b.id+'_shape',k=2;while(taken.has(id))id=b0.id+'_shape_'+(k++);b=Object.assign({},b0,{id});}
+      let b=Object.assign({},b0,{famN:famCount.get(b0.family)||0});
+      if(taken.has(b.id)){let id=b.id+'_shape',k=2;while(taken.has(id))id=b0.id+'_shape_'+(k++);b=Object.assign({},b,{id});}
       taken.add(b.id);
       let p=null,why='';
       try{p=modelBlockParts(b,ns,mTex,mNative,keyOf);if(!p)why='none of its textures could be read';else checkModelParts(p);}
@@ -2421,7 +2489,7 @@ async function buildAddon(entries,o){
   for(const m of mParts){files.push({name:bp+'blocks/'+m.b.id+'.json',data:jsonMin(m.p.doc)});bj[ns+':'+m.b.id]={sound:'stone'};}
   /* a block that rests on the water surface needs its own item, so the player can aim at the water */
   for(const m of mParts)if(m.b.support==='water'){
-    files.push({name:bp+'items/'+m.b.id+'.json',data:jsonMin({format_version:'1.21.50','minecraft:item':{description:{identifier:ns+':'+m.b.id,menu_category:{category:'nature'}},components:{'minecraft:block_placer':{block:ns+':'+m.b.id,replace_block_item:true},'minecraft:liquid_clipped':true}}})});
+    files.push({name:bp+'items/'+m.b.id+'.json',data:jsonMin({format_version:'1.21.50','minecraft:item':{description:{identifier:ns+':'+m.b.id,menu_category:menuFor(m.b,ns)},components:{'minecraft:block_placer':{block:ns+':'+m.b.id,replace_block_item:true},'minecraft:liquid_clipped':true}}})});
   }
   files.push({name:rp+'blocks.json',data:jsonMin(bj)});
   const td={};for(const k of[...used].sort())td['texture/'+k]={textures:'textures/blocks/'+k};
@@ -2434,7 +2502,8 @@ async function buildAddon(entries,o){
   const icon=await iconFor(entries.length?entries:[[...allTex.values()][0]]);files.push({name:bp+'pack_icon.png',data:icon},{name:rp+'pack_icon.png',data:icon});
   if(!plan.blocks.length&&!mParts.length)throw new Error('None of these shapes could be built into a working block'+(mFailed.length?' (for example '+mFailed[0].id+': '+mFailed[0].why+')':'')+'.');
   selfCheck(files,folder,ns);
-  return{files,plan,minEngine,textureFiles:pngFiles.size,folder,kind:'addon',modelBlocks:mParts.length,modelSkipped:mdl?mdl.blocks.length-mParts.length:0,modelFailed:mFailed};
+  const menuGroups=new Map();for(const b of plan.blocks.concat(mParts.map(m=>m.b))){const mc=menuFor(b,ns),k=mc.group||mc.category;menuGroups.set(k,(menuGroups.get(k)||0)+1);}
+  return{menuGroups,files,plan,minEngine,textureFiles:pngFiles.size,folder,kind:'addon',modelBlocks:mParts.length,modelSkipped:mdl?mdl.blocks.length-mParts.length:0,modelFailed:mFailed};
 }
 /* Replace the game's own textures -> resource pack file list */
 async function buildReplacePack(entries,o){
@@ -2449,7 +2518,7 @@ async function buildReplacePack(entries,o){
   files.push({name:rp+'pack_icon.png',data:await iconFor(plan.matches.map(m=>m.e))});
   return{files,plan,minEngine:MIN_ENGINE_BASE,folder,kind:'resourcepack'};
 }
-return{selfCheck,checkModelParts,LAYERS,buildAddon,buildReplacePack,planNew,planReplace,makeZipBytes,encodePng,nativeFile,renderMethodFor,groupFaces,sanitizeId,sanitizeNs,validNs,titleCase,uuidFor,blockDoc,geometryDoc,connectionCubes,stairCubes,faceUv,crc32,NATIVE_FILES,NATIVE_ALIAS,FV,upscale,HAVE_CS,zlibStored};
+return{menuFor,selfCheck,checkModelParts,LAYERS,buildAddon,buildReplacePack,planNew,planReplace,makeZipBytes,encodePng,nativeFile,renderMethodFor,groupFaces,sanitizeId,sanitizeNs,validNs,titleCase,uuidFor,blockDoc,geometryDoc,connectionCubes,stairCubes,faceUv,crc32,NATIVE_FILES,NATIVE_ALIAS,FV,upscale,HAVE_CS,zlibStored};
 })();
 /*EXPORT-END*/
 if(typeof module!=='undefined')module.exports=ExportCore;
@@ -2818,11 +2887,11 @@ function groupFamilies(blocks){
    game draws them, from the pack's own textures, and always wait for a look before they go into a pack. */
 const face6=(side,top,bottom)=>({north:{texture:side},south:{texture:side},east:{texture:side},west:{texture:side},up:{texture:top||side},down:{texture:bottom||side}});
 const GAME_SHAPES=[
-  {id:'cactus',roles:{side:/^cactus_side$/,top:/^cactus_top$/,bottom:/^cactus_bottom$/},fallback:{bottom:'top'},
+  {id:'cactus',menu:{category:'nature'},roles:{side:/^cactus_side$/,top:/^cactus_top$/,bottom:/^cactus_bottom$/},fallback:{bottom:'top'},
     model:()=>({elements:[{from:[1,0,1],to:[15,16,15],faces:Object.assign(face6('#side','#top','#bottom'),{})}]})},
-  {id:'lily_pad',roles:{texture:/^(lily_pad|waterlily|lilypad)$/},support:'water',
+  {id:'lily_pad',menu:{category:'nature'},roles:{texture:/^(lily_pad|waterlily|lilypad)$/},support:'water',
     model:()=>({elements:[{from:[0,0.25,0],to:[16,0.25,16],faces:{up:{texture:'#texture',tintindex:0,tintMethod:'default_foliage'},down:{texture:'#texture',tintindex:0,tintMethod:'default_foliage'}}}]})},
-  {id:'cauldron',roles:{side:/^cauldron_side$/,top:/^cauldron_top$/,inner:/^cauldron_inner$/,bottom:/^cauldron_bottom$/},fallback:{top:'side',inner:'side',bottom:'side'},
+  {id:'cauldron',menu:{category:'items'},roles:{side:/^cauldron_side$/,top:/^cauldron_top$/,inner:/^cauldron_inner$/,bottom:/^cauldron_bottom$/},fallback:{top:'side',inner:'side',bottom:'side'},
     model:()=>{
       const leg=(x,z)=>({from:[x,0,z],to:[x+4,3,z+4],faces:face6('#side',null,'#bottom')});
       return{elements:[leg(0,0),leg(12,0),leg(0,12),leg(12,12),
@@ -2832,7 +2901,7 @@ const GAME_SHAPES=[
         {from:[2,3,0],to:[14,16,2],faces:{north:{texture:'#side'},south:{texture:'#inner'},up:{texture:'#top'},down:{texture:'#bottom'}}},
         {from:[2,3,14],to:[14,16,16],faces:{south:{texture:'#side'},north:{texture:'#inner'},up:{texture:'#top'},down:{texture:'#bottom'}}}]};
     }},
-  {id:'flower_pot',roles:{texture:/^flower_pot$/},
+  {id:'flower_pot',menu:{category:'items'},roles:{texture:/^flower_pot$/},
     model:()=>({elements:[
       {from:[5,0,5],to:[11,1,11],faces:face6('#texture')},
       {from:[5,1,5],to:[6,6,11],faces:face6('#texture')},{from:[10,1,5],to:[11,6,11],faces:face6('#texture')},
@@ -2843,7 +2912,7 @@ const GAME_SHAPES=[
 const torchUv=(u0,v0,u1,v1)=>({uv:[u0,v0,u1,v1]});
 const torchPost=(from,to,rot)=>{const e={from,to,faces:{north:Object.assign({texture:'#texture'},torchUv(7,6,9,16)),south:Object.assign({texture:'#texture'},torchUv(7,6,9,16)),east:Object.assign({texture:'#texture'},torchUv(7,6,9,16)),west:Object.assign({texture:'#texture'},torchUv(7,6,9,16)),up:Object.assign({texture:'#texture'},torchUv(7,6,9,8)),down:Object.assign({texture:'#texture'},torchUv(7,13,9,15))}};if(rot)e.rotation=rot;return e;};
 for(const[id,re,light]of[['torch',/^(torch|torch_on)$/,14],['soul_torch',/^soul_torch$/,10],['redstone_torch',/^(redstone_torch|redstone_torch_on)$/,7]])
-  GAME_SHAPES.push({id,roles:{texture:re},support:'floor_side',light,passable:true,
+  GAME_SHAPES.push({id,menu:{category:'items',group:'minecraft:itemGroup.name.lanterns'},roles:{texture:re},support:'floor_side',light,passable:true,
     model:()=>({elements:[torchPost([7,0,7],[9,10,9])]}),
     wall:()=>({elements:[torchPost([7,3.5,13.5],[9,13.5,15.5],{origin:[8,3.5,14.5],axis:'x',angle:-22.5})]})});
 const anvilModel=()=>({elements:[
@@ -2852,7 +2921,7 @@ const anvilModel=()=>({elements:[
   {from:[6,5,4],to:[10,10,12],faces:face6('#base')},
   {from:[0,10,3],to:[16,16,13],faces:face6('#base','#top','#base')}]});
 for(const[id,top]of[['anvil',/^(anvil_top|anvil_top_damaged_0)$/],['chipped_anvil',/^(chipped_anvil_top|anvil_top_damaged_1)$/],['damaged_anvil',/^(damaged_anvil_top|anvil_top_damaged_2)$/]])
-  GAME_SHAPES.push({id,roles:{base:/^(anvil|anvil_base)$/,top},model:anvilModel,dir:{six:false,rot:{north:[0,0,0],south:[0,0,0],east:[0,90,0],west:[0,90,0]}}});
+  GAME_SHAPES.push({id,menu:{category:'items',group:'minecraft:itemGroup.name.anvil'},roles:{base:/^(anvil|anvil_base)$/,top},model:anvilModel,dir:{six:false,rot:{north:[0,0,0],south:[0,0,0],east:[0,90,0],west:[0,90,0]}}});
 /* items: [{stem, pack, uid}] -> [{pack, block, uids}] */
 function detectGameShapes(items){
   const byPack=new Map();
@@ -2888,7 +2957,7 @@ function detectGameShapes(items){
       const usedKeys=new Set();for(const c of cubes.concat(flip?flip.cubes:[]))for(const f of Object.values(c.uv))usedKeys.add(f.material_instance);
       for(const k of[...need.keys()])if(!usedKeys.has(k))need.delete(k);
       const boxes=boxesFor(cubes);if(g.passable)boxes.collision=false;
-      out.push({pack,uids,block:{id:g.id,ns:'game',name:g.id,cubes,need,boxes,repairs:[...rep],status:statusOf([...rep]),dir:g.dir||null,upper:null,flip,support:g.support||null,light:g.light||0}});
+      out.push({pack,uids,block:{id:g.id,ns:'game',name:g.id,cubes,need,boxes,repairs:[...rep],status:statusOf([...rep]),dir:g.dir||null,upper:null,flip,support:g.support||null,light:g.light||0,menu:g.menu||null}});
     }
   }
   return out;
@@ -3013,7 +3082,7 @@ async function scanArchive(archive,opt){
     const repairs=[...rep],status=statusOf(repairs);
     for(const r of repairs)stats.repairs[r]=(stats.repairs[r]||0)+1;
     if(status==='clean')stats.wrapped++;else if(status==='repaired')stats.repaired++;else stats.approximate++;
-    blocks.push({id,ns:st.ns,name:st.name,cubes:main.cubes,need:union,boxes:boxesFor(main.cubes),repairs,status,dir,
+    blocks.push({id,ns:st.ns,name:st.name,family:familyOf(id),cubes:main.cubes,need:union,boxes:boxesFor(main.cubes),repairs,status,dir,
       upper:upper?{cubes:upper.cubes,boxes:boxesFor(upper.cubes)}:null,
       flip:flip?{cubes:flip.cubes,boxes:boxesFor(flip.cubes),mode:flipMode}:null,support:flip&&flipMode==='hanging'?'floor_ceiling':null,light:0});
   }
@@ -4485,7 +4554,7 @@ async function buildExport(){
     let models=null;
     if(exMode==='blocks'&&mdl.chosen.length){
       const bySet=new Map();
-      for(const x of mdl.chosen){if(!bySet.has(x.set))bySet.set(x.set,[]);bySet.get(x.set).push(x.b);}
+      for(const x of mdl.chosen){if(!bySet.has(x.set))bySet.set(x.set,[]);x.b.cat=blkCat(x.b.family||x.b.id);bySet.get(x.set).push(x.b);}
       const blocks=[],textures=new Map(),native=new Map(),used=new Set();
       for(const[set,list]of bySet){
         note('Reading model textures from '+set.name+'…');
@@ -4510,6 +4579,7 @@ async function buildExport(){
     const bits=[];
     if(r.kind==='addon'){
       bits.push((r.plan.blocks.length+(r.modelBlocks||0))+' blocks'+(r.modelBlocks?' ('+fmt(r.modelBlocks)+' from mod shapes'+(r.modelSkipped?', '+fmt(r.modelSkipped)+' failed the safety check and were left out':'')+')':'')+', '+r.textureFiles+' texture file'+(r.textureFiles===1?'':'s')+(r.textureFiles<r.plan.textures.size?' (identical textures are stored once)':'')+'.');
+      if(r.menuGroups&&r.menuGroups.size>1)bits.push('Sorted into '+r.menuGroups.size+' creative menu groups.');
       bits.push('Open the file with Minecraft, then switch on both of its packs for your world.');
       bits.push('Needs Minecraft '+r.minEngine.join('.')+' or newer.');
     }else{
