@@ -166,6 +166,7 @@ body.nohelp .sl small{display:none}
 .tabs button.on{color:var(--text);border-bottom-color:var(--accent)}
 body.mode-import .editonly,body.mode-edit .importonly{display:none!important}
 body.mode-import .libh{display:none}
+body.mode-import #libBrowse{display:none!important}
 .preview{top:46px!important}
 .mcrow{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--line)}
 .mcrow:first-child{border-top:0}
@@ -205,27 +206,47 @@ body.mode-import .libh{display:none}
 .mset .row2{display:flex;gap:6px;margin-top:8px}
 .mset .row2 input{flex:1;min-width:0}
 .mset details{margin-top:6px;font-size:12px;color:var(--dim)}
+.blklist{margin-top:6px}
+.blklist .gh{top:46px;background:var(--card)}
+#blkQ{background:#0f1218;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:9px;font-size:15px;min-width:0;width:100%;box-sizing:border-box}
+.brow{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.brow input[type=checkbox]{flex:none;width:22px;height:22px}
+.brow img.pv{width:56px;height:56px;flex:none;border-radius:8px;background:#0f1218;image-rendering:pixelated;object-fit:contain}
+.brow .bn{flex:1;min-width:0}
+.brow .bn b{display:block;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brow .bn small{display:block;color:var(--dim);font-size:11px;line-height:1.35}
+.brow.fam{background:rgba(127,127,127,.07);border-radius:10px;padding:8px;margin-top:4px;border-top:0}
+.brow.sub{padding-left:28px}
+.brow .tog{flex:none;padding:6px 10px;font-size:12px;min-height:0}
+#blkActs{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+#blkActs button{padding:9px 12px;font-size:13px}
+.mcrow .xs{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.mcrow .xs button{padding:3px 8px;font-size:11px;min-height:0;border-radius:999px}
+.mcrow .xs button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.mcrow.wrap{flex-wrap:wrap}
+.mcrow .ctl{flex-basis:100%;display:flex;gap:8px;align-items:center;padding-left:58px}
+.mcrow .ctl select{max-width:130px}
+.mcrow img.pv{width:48px;height:48px}
 .selbar{position:sticky;bottom:0;z-index:6;background:var(--card);margin:10px -12px -12px;padding:10px 12px 12px;border-top:1px solid var(--line);border-radius:0 0 14px 14px}
 </style>
 </head>
 <body>
 <main>
 <h1>Texture Shift</h1>
-<p class="sub"><b>Import items</b> brings textures in and turns them into Minecraft blocks, plants and resource packs. <b>Edit textures</b> merges a new look into batches of textures, part by part. Both use the same library of imported textures.</p>
+<p class="sub"><b>Import items</b>: add a mod or pack, tick the blocks you want, and get a Minecraft add-on. <b>Edit textures</b>: merge a new look into batches of textures.</p>
 <nav class="tabs" id="modeTabs" role="tablist"><button type="button" id="tabImport" role="tab">Import items</button><button type="button" id="tabEdit" role="tab">Edit textures</button></nav>
 
 <div id="paneImport" class="importonly">
-<h2 class="step">1 · Add textures</h2>
-<p class="lead" style="margin:0 0 8px">Import a texture pack, a folder or loose images into the library. Then tap textures to select them and add them to the Minecraft pack below.</p>
+<h2 class="step">1 · Add</h2>
+<p class="lead" style="margin:0 0 8px">Add a mod, a texture pack, a folder or loose pictures. Every block in them lands in one list below.</p>
 <div id="libMountImport"><div id="libWrap">
 <h2 class="libh">Library</h2>
 <div class="card" id="libCard">
   <div class="picks">
-    <label class="pick"><b>Import packs &amp; images</b><span>.zip · .mcpack · .mcaddon · Java pack · .jar · png · jpg · tga</span><input id="fLib" type="file" multiple></label>
-    <label class="pick"><b>Import a folder</b><span>an unzipped pack (desktop and iPad)</span><input id="fLibDir" type="file" webkitdirectory multiple></label>
+    <label class="pick"><b>Add a mod, pack or images</b><span>.jar · .zip · .mcpack · .mcaddon · png · jpg</span><input id="fLib" type="file" multiple></label>
+    <label class="pick"><b>Add a folder</b><span>an unzipped pack (desktop and iPad)</span><input id="fLibDir" type="file" webkitdirectory multiple></label>
   </div>
-  <label class="check importonly" style="margin-top:8px"><input type="checkbox" id="impPlants" checked> Also import plants and cut-out shapes (they become plant blocks)</label>
-  <label class="check importonly"><input type="checkbox" id="impModels" checked> Also read Java block models from .jar / .zip mods (custom shapes)</label>
+  <input type="checkbox" id="impPlants" checked hidden><input type="checkbox" id="impModels" checked hidden>
   <div class="bar" id="libBar"><i></i></div>
   <div class="line"><button class="ghost" id="libStop" type="button" style="display:none">Stop import</button></div>
   <div id="libMsg"></div>
@@ -275,59 +296,49 @@ body.mode-import .libh{display:none}
         <button id="addT2" type="button" disabled>Toward C</button>
       </div>
     </div>
-    <div class="selbar importonly">
-      <div class="lead" style="margin:0 0 6px">Add <b id="selCount3">0</b> to the Minecraft pack as</div>
-      <div class="addrow4">
-        <button id="mcAddAuto" type="button" class="pri" disabled>Auto</button>
-        <button id="mcAddBlock" type="button" disabled>Blocks</button>
-        <button id="mcAddPlant" type="button" disabled>Plants</button>
-        <button id="mcAddTall" type="button" disabled>Tall plants</button>
-      </div>
-      <button id="mcMapAll" type="button" class="ghost" style="width:100%;margin-top:8px" disabled>Use all shown as a texture pack for the game</button>
-    </div>
   </div>
 </div>
 </div></div>
-<div class="card" id="mdlCard" style="display:none;margin-top:10px">
-  <b style="font-size:14px">Mod shapes found</b>
-  <div class="lead" style="margin:4px 0 0">Shapes that converted cleanly go straight into the shape library. Repaired or approximate ones wait under <b>Needs review</b> until you approve them. From the library you pick what goes into the pack.</div>
-  <div id="mdlSets"></div>
+
+<h2 class="step">2 · Choose blocks</h2>
+<div class="card" id="blocksCard">
+  <div id="blkEmpty" class="empty">Nothing added yet. Add a mod, pack or pictures above and its blocks appear here with a small picture of each.</div>
+  <div id="blkMain" style="display:none">
+    <div id="blkSummary" class="lead" style="margin:0 0 8px"></div>
+    <div class="seg" id="blkTabs"><button type="button" id="blkReady" class="on">Ready</button><button type="button" id="blkLook">Needs a look</button></div>
+    <div class="lead" id="blkTabHelp" style="margin:8px 0 0"></div>
+    <input id="blkQ" type="search" placeholder="Search blocks" autocomplete="off" aria-label="Search blocks" style="margin-top:8px">
+    <div class="acts" id="blkActs"></div>
+    <div id="blkMsg" class="lead" style="margin:6px 0 0"></div>
+    <div id="blkList" class="blklist"></div>
+    <details class="rules" id="blkSkipped" style="display:none"><summary id="blkSkippedT">Not converted</summary><div id="blkSkippedB"></div></details>
+    <details class="rules" id="blkGame"><summary>Replace the game’s own textures instead</summary>
+      <div class="lead" style="margin:6px 0 0">If this is a texture pack for the normal game, use its textures as a resource pack instead of making new blocks.</div>
+      <button class="ghost" id="mcMapAll" type="button" style="width:100%;margin-top:8px" disabled>Use the textures as a texture pack for the game</button>
+    </details>
+  </div>
 </div>
-<h2 class="step">2 · Your Minecraft pack</h2>
+<h2 class="step">3 · Your pack</h2>
 <div class="card" id="mcCard">
-  <div id="mdlChosen" style="display:none" class="mcrow"><div class="mcn"><b id="mdlChosenT"></b><small>custom-shape blocks from mods</small></div><button class="ghost sm" id="mdlChosenX" type="button">Remove</button></div>
-  <div id="mcEmpty" class="empty">Nothing here yet. Select textures in the library above, then tap <b>Auto</b>, <b>Blocks</b>, <b>Plants</b> or <b>Tall plants</b>.</div>
+  <div id="mcEmpty" class="empty">Nothing picked yet. Tick blocks above and press <b>Add to pack</b>.</div>
   <div id="mcTools" style="display:none">
     <div id="mcHead"><b id="mcCount"></b><button class="ghost sm" id="mcClear" type="button">Remove all</button></div>
-    <div class="mcbulk"><span>Set all to</span><button class="ghost" id="mcAllAuto" type="button">Auto</button><button class="ghost" id="mcAllBlock" type="button">Blocks</button><button class="ghost" id="mcAllPlant" type="button">Plants</button><button class="ghost" id="mcAllTall" type="button">Tall plants</button></div>
+    <details class="rules" id="mcMore"><summary>Also make slabs, stairs, fences…</summary>
+      <div class="lead" style="margin:6px 0 0">Nothing extra is made unless you ask. Tap <b>+ shapes</b> on a texture below to add slabs, stairs, fences, walls or height blocks for that one block, or switch one on for every texture here:</div>
+      <div class="mcbulk" id="mcBulk"></div>
+    </details>
   </div>
   <div id="mcList"></div>
 </div>
-<h2 class="step">3 · Build it</h2>
+<h2 class="step">4 · Build it</h2>
 <div class="card" id="exportCard">
-  <div class="seg"><button type="button" id="exBlocks" class="on">New blocks</button><button type="button" id="exReplace">Replace game textures</button></div>
+  <div class="seg"><button type="button" id="exBlocks" class="on">Make blocks</button><button type="button" id="exReplace">Replace game textures</button></div>
   <div class="lead" id="exInfo" style="margin-top:8px"></div>
   <div class="line"><label for="exName">Pack name</label><input id="exName" type="text" maxlength="40" value="Texture Shift" autocomplete="off"></div>
-  <div id="exBlockOpts">
+  <details class="rules" id="exBlockOpts"><summary>More options</summary>
     <div class="line"><label for="exNs">Namespace</label><input id="exNs" type="text" maxlength="16" value="tshift" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off"></div>
-    <div class="lead" style="margin-top:10px">Made from each <b>block</b> texture:</div>
-    <div class="exvars">
-      <label class="check"><input type="checkbox" id="exV_cube" checked> Full block</label>
-      <label class="check"><input type="checkbox" id="exV_slab"> Slab</label>
-      <label class="check"><input type="checkbox" id="exV_stairs"> Stairs</label>
-      <label class="check"><input type="checkbox" id="exV_fence"> Fence</label>
-      <label class="check"><input type="checkbox" id="exV_wall"> Wall</label>
-      <label class="check" id="exCornerRow"><input type="checkbox" id="exCorner"> Corner stairs</label>
-    </div>
-    <div class="lead" style="margin-top:10px">Height blocks (they stack and flip like slabs):</div>
-    <div class="exvars">
-      <label class="check"><input type="checkbox" id="exV_eighth"> ⅛ block</label>
-      <label class="check"><input type="checkbox" id="exV_quarter"> ¼ block</label>
-      <label class="check"><input type="checkbox" id="exV_three_eighths"> ⅜ block</label>
-      <label class="check"><input type="checkbox" id="exV_three_quarters"> ¾ block</label>
-    </div>
-    <small style="display:block;color:var(--dim);font-size:12px;margin-top:8px">Plants become one pottable cross-shaped block each. Tall plants become a two-high block (name pairs like <i>rose_bush_bottom</i> and <i>rose_bush_top</i> merge into one). Corner stairs and tall plants need Minecraft 1.26.40 or newer; plants need 1.26.20.</small>
-  </div>
+    <label class="check" id="exCornerRow"><input type="checkbox" id="exCorner"> Stairs that join into corners (needs a recent Minecraft)</label>
+  </details>
   <div id="exSummary"></div>
   <button class="main" id="exBuild" type="button" style="margin-top:12px" disabled>Build add-on</button>
   <div id="exOut"></div>
@@ -1930,6 +1941,14 @@ function faceUv([o,s]){
 function geometryDoc(id,cubes){
   return{format_version:'1.12.0','minecraft:geometry':[{description:{identifier:id,texture_width:16,texture_height:16},bones:[{name:'root',cubes:cubes.map(([o,s])=>({origin:o.slice(),size:s.slice(),uv:faceUv([o,s])}))}]}]};
 }
+/* what a block needs to be standing next to: one fixed Bedrock recipe per kind of support.
+   A face is the face of the neighbouring block it is placed against ("up" = on top of a block). */
+const SUPPORT={
+  floor:[{allowed_faces:['up']}],
+  floor_side:[{allowed_faces:['up','side']}],
+  floor_ceiling:[{allowed_faces:['up','down']}],
+  water:[{allowed_faces:['up'],block_filter:['minecraft:water']}]
+};
 const cond=(name,v)=>`query.block_state('${name}') == ${typeof v==='string'?"'"+v+"'":v}`;
 const geoId=(ns,key)=>`geometry.${ns}.${key}`;
 
@@ -1990,7 +2009,7 @@ function blockDoc(b,ns,opt){
     }
     case'plant':{
       /* cross-shaped plant that can also be placed in a flower pot (components stay in the root, as the game requires) */
-      return out(FV.plant,desc,{'minecraft:geometry':'minecraft:geometry.cross','minecraft:material_instances':mat,'minecraft:collision_box':false,'minecraft:selection_box':{origin:[-4,0,-4],size:[8,12,8]},
+      return out(FV.plant,desc,{'minecraft:placement_filter':{conditions:SUPPORT.floor},'minecraft:geometry':'minecraft:geometry.cross','minecraft:material_instances':mat,'minecraft:collision_box':false,'minecraft:selection_box':{origin:[-4,0,-4],size:[8,12,8]},
         'minecraft:flower_pottable':{},'minecraft:embedded_visual':{geometry:'minecraft:geometry.cross',material_instances:JSON.parse(JSON.stringify(mat))}});
     }
     case'tall':{
@@ -2043,6 +2062,7 @@ function modelMaterials(need,tex,nativeKeys,keyOf){
 }
 const MODEL_FV_TALL='1.26.40';
 /* returns {doc,geo,geoUp?,keys} or null when a block has no texture at all */
+const altSuffix=b=>({half:'_top',hanging:'_hang',wall:'_wall'})[b.flip&&b.flip.mode||'half'];
 function modelBlockParts(b,ns,tex,nativeKeys,keyOf){
   const lo=modelMaterials(b.need,tex,nativeKeys,keyOf);
   if(!lo)return null;
@@ -2051,10 +2071,16 @@ function modelBlockParts(b,ns,tex,nativeKeys,keyOf){
     const needUp=new Map();for(const c of b.upper.cubes)for(const f of Object.values(c.uv))if(b.need.has(f.material_instance))needUp.set(f.material_instance,b.need.get(f.material_instance));
     up=modelMaterials(needUp,tex,nativeKeys,keyOf);
   }
-  const multi=(b.boxes.collision&&Array.isArray(b.boxes.collision))||(up&&up.mi&&b.upper.boxes.collision&&Array.isArray(b.upper.boxes.collision));
+  let fl=null;
+  if(b.flip&&!b.upper){
+    const needFl=new Map();for(const c of b.flip.cubes)for(const f of Object.values(c.uv))if(b.need.has(f.material_instance))needFl.set(f.material_instance,b.need.get(f.material_instance));
+    fl=modelMaterials(needFl,tex,nativeKeys,keyOf);
+  }
+  const isArr=x=>Array.isArray(x);
+  const multi=isArr(b.boxes.collision)||(up&&isArr(b.upper.boxes.collision))||(fl&&isArr(b.flip.boxes.collision));
   const fv=up?MODEL_FV_TALL:multi?'1.26.0':b.dir?FV.dirModel:FV.model;
   const dirState=b.dir?(b.dir.six?'minecraft:facing_direction':'minecraft:cardinal_direction'):null;
-  const geoId0=geoId(ns,b.id),geoIdUp=geoId(ns,b.id+'_up');
+  const altMode=b.flip&&b.flip.mode||'half',geoId0=geoId(ns,b.id),geoIdUp=geoId(ns,b.id+'_up'),geoIdTop=geoId(ns,b.id+altSuffix(b));
   const doc={format_version:fv,'minecraft:block':{description:{identifier:ns+':'+b.id,menu_category:{category:'construction'}},components:{
     'minecraft:geometry':geoId0,'minecraft:material_instances':lo.mi,
     'minecraft:collision_box':b.boxes.collision||false,'minecraft:selection_box':b.boxes.selection||{origin:[-8,0,-8],size:[16,16,16]}}}};
@@ -2071,8 +2097,29 @@ function modelBlockParts(b,ns,tex,nativeKeys,keyOf){
       'minecraft:geometry':geoIdUp,'minecraft:material_instances':up.mi,
       'minecraft:collision_box':b.upper.boxes.collision||false,'minecraft:selection_box':b.upper.boxes.selection}}];
   }
+  if(fl){
+    const altComps={'minecraft:geometry':geoIdTop,'minecraft:material_instances':fl.mi,
+      'minecraft:collision_box':b.flip.boxes.collision||false,'minecraft:selection_box':b.flip.boxes.selection};
+    if(altMode==='half'){
+      bk.description.traits={'minecraft:placement_position':{enabled_states:['minecraft:vertical_half']}};
+      bk.permutations=[{condition:cond('minecraft:vertical_half','top'),components:altComps}];
+    }else if(altMode==='hanging'){
+      /* placed against the underside of a block: the hanging version */
+      bk.description.traits={'minecraft:placement_position':{enabled_states:['minecraft:block_face']}};
+      bk.permutations=[{condition:cond('minecraft:block_face','down'),components:altComps}];
+    }else if(altMode==='wall'){
+      /* the way Mojang's own torch example does it: turn by the face, and swap the shape on every side face */
+      bk.description.traits={'minecraft:placement_position':{enabled_states:['minecraft:block_face']}};
+      bk.permutations=[['north',0],['south',180],['west',90],['east',-90]].map(([f,y])=>({condition:cond('minecraft:block_face',f),components:{'minecraft:transformation':{rotation:[0,y,0]}}}));
+      bk.permutations.push({condition:"query.block_state('minecraft:block_face') != 'up' && query.block_state('minecraft:block_face') != 'down'",components:altComps});
+    }
+  }
+  const sup=b.support||(fl&&altMode==='wall'?'floor_side':fl&&altMode==='hanging'?'floor_ceiling':null);
+  if(sup&&SUPPORT[sup])bk.components['minecraft:placement_filter']={conditions:JSON.parse(JSON.stringify(SUPPORT[sup]))};
+  if(b.light>0)bk.components['minecraft:light_emission']=Math.min(15,Math.round(b.light));
   const geo=modelGeometryDoc(geoId0,b.cubes,lo.keyMap);
   const out={doc,geo,keys:lo.usedKeys.slice()};
+  if(fl){out.geoTop=modelGeometryDoc(geoIdTop,b.flip.cubes,fl.keyMap);for(const k of fl.usedKeys)if(!out.keys.includes(k))out.keys.push(k);}
   if(up){out.geoUp=modelGeometryDoc(geoIdUp,b.upper.cubes,up.keyMap);for(const k of up.usedKeys)if(!out.keys.includes(k))out.keys.push(k);}
   return out;
 }
@@ -2135,6 +2182,12 @@ function checkModelParts(p){
   };
   checkMi(comps['minecraft:material_instances']);checkGeo(p.geo,comps['minecraft:material_instances']);
   checkBox(comps['minecraft:collision_box'],24,'collision');checkBox(comps['minecraft:selection_box'],16,'selection');
+  if(p.geoTop){
+    const pm=block.permutations&&block.permutations.find(x=>x.components['minecraft:geometry']);
+    if(!pm)bad('top version has no permutation');
+    checkMi(pm.components['minecraft:material_instances']);checkGeo(p.geoTop,pm.components['minecraft:material_instances']);
+    checkBox(pm.components['minecraft:collision_box'],24,'top collision');checkBox(pm.components['minecraft:selection_box'],16,'top selection');
+  }
   if(p.geoUp){
     const pm=block.permutations&&block.permutations.find(x=>x.components['minecraft:geometry']);
     if(!pm)bad('top half has no permutation');
@@ -2216,10 +2269,11 @@ function planNew(entries,o){
     const faces={side:useTex(u.side)};
     if(u.up){faces.up=useTex(u.up);faces.down=useTex(u.down);}
     const cat=u.cat||'',category=catOf(cat,o.category||'construction'),sound=soundFor(cat,u.id);
+    const ex=u.side.e.extra||{},want=k=>!!(variants[k]||ex[k]);
     if(variants.cube!==false)push(u.id,titleCase(u.id),u.up?(u.axis?'log':'faces'):'cube',faces,u.render,category,sound);
     const single=()=>({side:faces.side});
-    for(const sh of['slab','stairs','fence','wall'])if(variants[sh]&&!u.id.endsWith(SHAPE_SUFFIX[sh]))push(u.id+SHAPE_SUFFIX[sh],titleCase(u.id+SHAPE_SUFFIX[sh]),sh,single(),u.render,category,sound);
-    for(const[k,L]of Object.entries(LAYERS))if(variants[k]&&!u.id.endsWith(L.suffix))push(u.id+L.suffix,titleCase(u.id)+' '+L.label,'layer',single(),u.render,category,sound,{h:L.h});
+    for(const sh of['slab','stairs','fence','wall'])if(want(sh)&&!u.id.endsWith(SHAPE_SUFFIX[sh]))push(u.id+SHAPE_SUFFIX[sh],titleCase(u.id+SHAPE_SUFFIX[sh]),sh,single(),u.render,category,sound);
+    for(const[k,L]of Object.entries(LAYERS))if(want(k)&&!u.id.endsWith(L.suffix))push(u.id+L.suffix,titleCase(u.id)+' '+L.label,'layer',single(),u.render,category,sound,{h:L.h});
   }
   /* plants: one cross-shaped, pottable block per texture */
   for(const x of list.filter(x=>x.kind==='plant'))
@@ -2298,12 +2352,25 @@ function selfCheck(files,folder,ns){
     if(seen.has(id))fail('two blocks share the identifier '+id);seen.add(id);
     if(!bj[id])fail(id+' is missing from blocks.json');
     walk(b,(k,v)=>{
+      if(k==='minecraft:placement_filter'){
+        const cs=v&&v.conditions;if(!Array.isArray(cs)||!cs.length||cs.length>64)fail(id+' has a broken placement rule');
+        for(const c of cs){
+          if(!Array.isArray(c.allowed_faces)||!c.allowed_faces.length||c.allowed_faces.some(x=>!['up','down','north','south','east','west','side'].includes(x)))fail(id+' has a placement rule with an unknown face');
+          if(c.block_filter!==undefined&&(!Array.isArray(c.block_filter)||c.block_filter.length>64||c.block_filter.some(x=>typeof x!=='string')))fail(id+' has a placement rule with a broken block list');
+        }
+      }
+      if(k==='minecraft:light_emission'&&!(Number.isInteger(v)&&v>=0&&v<=15))fail(id+' has a light level outside 0 to 15');
       if(k==='minecraft:geometry'&&typeof v==='string'&&v.indexOf('minecraft:')!==0&&!geoIds.has(v))fail(id+' points at geometry '+v+' that is not in the pack');
       if(k==='minecraft:material_instances'&&v&&typeof v==='object')for(const[mk,mv]of Object.entries(v)){
         if(typeof mv.texture!=='string')fail(id+' has a texture entry with no name');
         if(mv.texture.indexOf('texture/')===0&&!tt[mv.texture])fail(id+' uses texture '+mv.texture+' that is not registered');
       }
     });
+  }
+  for(const f of files)if(f.name.startsWith(bp+'items/')&&f.name.endsWith('.json')){
+    const it=J(f.name)['minecraft:item'],id=it&&it.description&&it.description.identifier;
+    if(!id||!seen.has(id))fail(f.name+' belongs to a block that is not in the pack');
+    const bpl=it.components&&it.components['minecraft:block_placer'];if(!bpl||bpl.block!==id)fail(f.name+' does not place its own block');
   }
   return true;
 }
@@ -2337,11 +2404,11 @@ async function buildAddon(entries,o){
       let p=null,why='';
       try{p=modelBlockParts(b,ns,mTex,mNative,keyOf);if(!p)why='none of its textures could be read';else checkModelParts(p);}
       catch(e){p=null;why=e.message;}
-      if(p&&(geoIds.has(geoId(ns,b.id))||(p.geoUp&&geoIds.has(geoId(ns,b.id+'_up'))))){p=null;why='its shape name clashes with another block';}
+      if(p&&(geoIds.has(geoId(ns,b.id))||(p.geoUp&&geoIds.has(geoId(ns,b.id+'_up')))||(p.geoTop&&geoIds.has(geoId(ns,b.id+altSuffix(b)))))){p=null;why='its shape name clashes with another block';}
       if(!p){mFailed.push({id:b0.id,why});continue;}
-      geoIds.add(geoId(ns,b.id));if(p.geoUp)geoIds.add(geoId(ns,b.id+'_up'));
-      if(p.geoUp)taken.add(b.id+'_up');
-      mParts.push({b,p});for(const k of p.keys)used.add(keyOf.get(k));bump(p.doc.format_version);
+      geoIds.add(geoId(ns,b.id));if(p.geoUp)geoIds.add(geoId(ns,b.id+'_up'));if(p.geoTop)geoIds.add(geoId(ns,b.id+altSuffix(b)));
+      if(p.geoUp)taken.add(b.id+'_up');if(p.geoTop)taken.add(b.id+altSuffix(b));
+      mParts.push({b,p});for(const k of p.keys)used.add(keyOf.get(k));bump(p.doc.format_version);if(b.support==='water')bump('1.21.50');
     }
   }
   const man=manifests(name,folder,true,true,minEngine,'Built with Texture Shift');
@@ -2352,6 +2419,10 @@ async function buildAddon(entries,o){
   files.push({name:rp+'manifest.json',data:utf8(JSON.stringify(man.rp,null,2))});
   const bj={format_version:'1.19.30'};for(const b of sorted)bj[ns+':'+b.id]={sound:b.sound};
   for(const m of mParts){files.push({name:bp+'blocks/'+m.b.id+'.json',data:jsonMin(m.p.doc)});bj[ns+':'+m.b.id]={sound:'stone'};}
+  /* a block that rests on the water surface needs its own item, so the player can aim at the water */
+  for(const m of mParts)if(m.b.support==='water'){
+    files.push({name:bp+'items/'+m.b.id+'.json',data:jsonMin({format_version:'1.21.50','minecraft:item':{description:{identifier:ns+':'+m.b.id,menu_category:{category:'nature'}},components:{'minecraft:block_placer':{block:ns+':'+m.b.id,replace_block_item:true},'minecraft:liquid_clipped':true}}})});
+  }
   files.push({name:rp+'blocks.json',data:jsonMin(bj)});
   const td={};for(const k of[...used].sort())td['texture/'+k]={textures:'textures/blocks/'+k};
   files.push({name:rp+'textures/terrain_texture.json',data:jsonMin({resource_pack_name:name,texture_name:'atlas.terrain',texture_data:td})});
@@ -2359,7 +2430,7 @@ async function buildAddon(entries,o){
   files.push({name:rp+'texts/en_US.lang',data:utf8(sorted.map(b=>`tile.${ns}:${b.id}.name=${b.title}`).concat(mParts.map(m=>`tile.${ns}:${m.b.id}.name=${titleCase(m.b.id)}`)).join('\n')+'\n')});
   files.push({name:rp+'texts/languages.json',data:jsonMin(['en_US'])});
   for(const g of geometryFiles(plan.blocks,ns,{cornerStairs}))files.push({name:rp+g.name,data:g.data});
-  for(const m of mParts){files.push({name:rp+'models/entity/'+ns+'_'+m.b.id+'.geo.json',data:jsonMin(m.p.geo)});if(m.p.geoUp)files.push({name:rp+'models/entity/'+ns+'_'+m.b.id+'_up.geo.json',data:jsonMin(m.p.geoUp)});}
+  for(const m of mParts){files.push({name:rp+'models/entity/'+ns+'_'+m.b.id+'.geo.json',data:jsonMin(m.p.geo)});if(m.p.geoUp)files.push({name:rp+'models/entity/'+ns+'_'+m.b.id+'_up.geo.json',data:jsonMin(m.p.geoUp)});if(m.p.geoTop)files.push({name:rp+'models/entity/'+ns+'_'+m.b.id+altSuffix(m.b)+'.geo.json',data:jsonMin(m.p.geoTop)});}
   const icon=await iconFor(entries.length?entries:[[...allTex.values()][0]]);files.push({name:bp+'pack_icon.png',data:icon},{name:rp+'pack_icon.png',data:icon});
   if(!plan.blocks.length&&!mParts.length)throw new Error('None of these shapes could be built into a working block'+(mFailed.length?' (for example '+mFailed[0].id+': '+mFailed[0].why+')':'')+'.');
   selfCheck(files,folder,ns);
@@ -2548,7 +2619,7 @@ function wrapModel(m,usedTex,opt){
       if(u2<u1){fx=true;[u1,u2]=[16-u1,16-u2];}
       if(v2<v1){fy=true;[v1,v2]=[16-v1,16-v2];}
       const tinted=fc.tintindex!==undefined&&fc.tintindex!==null&&Number(fc.tintindex)>=0;
-      const tintM=tinted?tintFor(ref):null;
+      const tintM=tinted?(fc.tintMethod||tintFor(ref)):null;
       const t2={rot:tr,fx,fy,tint:tintM},key=texKey(ref,t2);
       if(tr||fx||fy){rep.add('texture_rotated_copy');if(opt.native&&opt.native.has(ref))rep.add('texture_approximate');}
       need.set(key,{ref,rot:tr,fx,fy,tint:tintM});
@@ -2559,6 +2630,52 @@ function wrapModel(m,usedTex,opt){
   return{cubes,need,rep};
 }
 
+/* ---- closed geometry: every visible side of a solid piece must have a face ---- */
+const FACE_DIRS=[['north',[0,0,-1]],['south',[0,0,1]],['east',[1,0,0]],['west',[-1,0,0]],['up',[0,1,0]],['down',[0,-1,0]]];
+const OPPOSITE={north:'south',south:'north',east:'west',west:'east',up:'down',down:'up'};
+function openSides(cubes){
+  const E=0.03,out=[];
+  const solid=cubes.map(c=>!c.rotation&&c.size.every(v=>v>0.05));
+  const inside=(p,j)=>{const c=cubes[j];if(!solid[j])return false;
+    return p[0]>c.origin[0]+1e-4&&p[0]<c.origin[0]+c.size[0]-1e-4&&p[1]>c.origin[1]+1e-4&&p[1]<c.origin[1]+c.size[1]-1e-4&&p[2]>c.origin[2]+1e-4&&p[2]<c.origin[2]+c.size[2]-1e-4;};
+  for(let i=0;i<cubes.length;i++){
+    if(!solid[i])continue;
+    const c=cubes[i],o=c.origin,z=c.size;
+    for(const[d,n]of FACE_DIRS){
+      if(c.uv[d])continue;
+      /* the face rectangle */
+      const ax=n[0]?0:n[1]?1:2,u=ax===0?1:0,v=ax===2?1:2;
+      const w=z[u],h=z[v];if(w*h<4)continue;   /* a sliver edge: not worth a face */
+      const plane=o[ax]+(n[ax]>0?z[ax]:0);
+      let visible=false;
+      for(const fu of[0.2,0.5,0.8]){for(const fv of[0.2,0.5,0.8]){
+        const p=[0,0,0];p[ax]=plane;p[u]=o[u]+z[u]*fu;p[v]=o[v]+z[v]*fv;
+        const a=p.slice(),b=p.slice();a[ax]+=E*n[ax];b[ax]-=E*n[ax];
+        let hid=false;
+        for(let j=0;j<cubes.length&&!hid;j++){if(j===i)continue;if(inside(a,j)||inside(b,j))hid=true;}
+        if(!hid){visible=true;break;}
+      }if(visible)break;}
+      if(visible)out.push({i,d});
+    }
+  }
+  return out;
+}
+/* add the missing faces, using the opposite face's texture (or any texture the piece already has) */
+function closeSides(cubes,need){
+  const open=openSides(cubes);
+  for(const{i,d}of open){
+    const c=cubes[i],plain=k=>{const v=need.get(k);return v&&!v.rot&&!v.fx&&!v.fy;};
+    let src=c.uv[OPPOSITE[d]];
+    let key=src&&src.material_instance;
+    if(!key||!plain(key)){
+      key=Object.values(c.uv).map(f=>f.material_instance).find(plain)||(src&&src.material_instance)||Object.values(c.uv)[0].material_instance;
+    }
+    const f=[c.origin[0]+8,c.origin[1],c.origin[2]+8],t=[f[0]+c.size[0],f[1]+c.size[1],f[2]+c.size[2]];
+    const uv=defaultUv(d,f,t).map(x=>clamp(x,0,16));
+    c.uv[d]={uv:[r4(Math.min(uv[0],uv[2])),r4(Math.min(uv[1],uv[3]))],uv_size:[r4(Math.abs(uv[2]-uv[0])),r4(Math.abs(uv[3]-uv[1]))],material_instance:key};
+  }
+  return open.length;
+}
 /* ---- measurements: real extents (rotation included), fitting into a block, collision ---- */
 function cubeCorners(c){
   const o=c.origin,s=c.size,pts=[];
@@ -2673,7 +2790,7 @@ function directionInfo(vlist){
   return any?{six,rot}:null;
 }
 /* how trustworthy a converted block is */
-const APPROX=['texture_fallback','face_dropped','element_skipped','piece_outside_limits','texture_approximate','cube_from_textures','too_many_textures'];
+const APPROX=['builtin_shape','texture_fallback','face_dropped','element_skipped','piece_outside_limits','texture_approximate','cube_from_textures','too_many_textures'];
 function statusOf(repairs){
   if(!repairs.length)return'clean';
   return repairs.some(r=>APPROX.includes(r))?'approximate':'repaired';
@@ -2695,6 +2812,86 @@ function groupFamilies(blocks){
   for(const b of blocks){const k=familyOf(b.id);let g=m.get(k);if(!g){g={key:k,members:[]};m.set(k,g);}g.members.push(b);}
   for(const g of m.values())for(const b of g.members){{const p=b.id===g.key?'base':b.id.slice(g.key.length+1)||'base';b.part=/^\d+$/.test(p)?'variant '+p:p;}}
   return[...m.values()];
+}
+/* ---- the game's own unusual shapes, rebuilt for texture packs that only carry their pictures ----
+   A texture pack for the normal game has "cactus_side", "anvil", "waterlily"... but no shape. These are built the way the
+   game draws them, from the pack's own textures, and always wait for a look before they go into a pack. */
+const face6=(side,top,bottom)=>({north:{texture:side},south:{texture:side},east:{texture:side},west:{texture:side},up:{texture:top||side},down:{texture:bottom||side}});
+const GAME_SHAPES=[
+  {id:'cactus',roles:{side:/^cactus_side$/,top:/^cactus_top$/,bottom:/^cactus_bottom$/},fallback:{bottom:'top'},
+    model:()=>({elements:[{from:[1,0,1],to:[15,16,15],faces:Object.assign(face6('#side','#top','#bottom'),{})}]})},
+  {id:'lily_pad',roles:{texture:/^(lily_pad|waterlily|lilypad)$/},support:'water',
+    model:()=>({elements:[{from:[0,0.25,0],to:[16,0.25,16],faces:{up:{texture:'#texture',tintindex:0,tintMethod:'default_foliage'},down:{texture:'#texture',tintindex:0,tintMethod:'default_foliage'}}}]})},
+  {id:'cauldron',roles:{side:/^cauldron_side$/,top:/^cauldron_top$/,inner:/^cauldron_inner$/,bottom:/^cauldron_bottom$/},fallback:{top:'side',inner:'side',bottom:'side'},
+    model:()=>{
+      const leg=(x,z)=>({from:[x,0,z],to:[x+4,3,z+4],faces:face6('#side',null,'#bottom')});
+      return{elements:[leg(0,0),leg(12,0),leg(0,12),leg(12,12),
+        {from:[2,4,2],to:[14,5,14],faces:{up:{texture:'#inner'},down:{texture:'#bottom'}}},
+        {from:[0,3,0],to:[2,16,16],faces:{west:{texture:'#side'},east:{texture:'#inner'},up:{texture:'#top'},north:{texture:'#side'},south:{texture:'#side'},down:{texture:'#bottom'}}},
+        {from:[14,3,0],to:[16,16,16],faces:{east:{texture:'#side'},west:{texture:'#inner'},up:{texture:'#top'},north:{texture:'#side'},south:{texture:'#side'},down:{texture:'#bottom'}}},
+        {from:[2,3,0],to:[14,16,2],faces:{north:{texture:'#side'},south:{texture:'#inner'},up:{texture:'#top'},down:{texture:'#bottom'}}},
+        {from:[2,3,14],to:[14,16,16],faces:{south:{texture:'#side'},north:{texture:'#inner'},up:{texture:'#top'},down:{texture:'#bottom'}}}]};
+    }},
+  {id:'flower_pot',roles:{texture:/^flower_pot$/},
+    model:()=>({elements:[
+      {from:[5,0,5],to:[11,1,11],faces:face6('#texture')},
+      {from:[5,1,5],to:[6,6,11],faces:face6('#texture')},{from:[10,1,5],to:[11,6,11],faces:face6('#texture')},
+      {from:[6,1,5],to:[10,6,6],faces:face6('#texture')},{from:[6,1,10],to:[10,6,11],faces:face6('#texture')}]})}
+];
+/* ---- torches: the game has two blocks (standing and wall-mounted). Bedrock has one rule for that: one block that
+   remembers which face it was placed on, standing on top of a block or leaning out from the side of one. ---- */
+const torchUv=(u0,v0,u1,v1)=>({uv:[u0,v0,u1,v1]});
+const torchPost=(from,to,rot)=>{const e={from,to,faces:{north:Object.assign({texture:'#texture'},torchUv(7,6,9,16)),south:Object.assign({texture:'#texture'},torchUv(7,6,9,16)),east:Object.assign({texture:'#texture'},torchUv(7,6,9,16)),west:Object.assign({texture:'#texture'},torchUv(7,6,9,16)),up:Object.assign({texture:'#texture'},torchUv(7,6,9,8)),down:Object.assign({texture:'#texture'},torchUv(7,13,9,15))}};if(rot)e.rotation=rot;return e;};
+for(const[id,re,light]of[['torch',/^(torch|torch_on)$/,14],['soul_torch',/^soul_torch$/,10],['redstone_torch',/^(redstone_torch|redstone_torch_on)$/,7]])
+  GAME_SHAPES.push({id,roles:{texture:re},support:'floor_side',light,passable:true,
+    model:()=>({elements:[torchPost([7,0,7],[9,10,9])]}),
+    wall:()=>({elements:[torchPost([7,3.5,13.5],[9,13.5,15.5],{origin:[8,3.5,14.5],axis:'x',angle:-22.5})]})});
+const anvilModel=()=>({elements:[
+  {from:[2,0,2],to:[14,4,14],faces:face6('#base')},
+  {from:[4,4,3],to:[12,5,13],faces:face6('#base')},
+  {from:[6,5,4],to:[10,10,12],faces:face6('#base')},
+  {from:[0,10,3],to:[16,16,13],faces:face6('#base','#top','#base')}]});
+for(const[id,top]of[['anvil',/^(anvil_top|anvil_top_damaged_0)$/],['chipped_anvil',/^(chipped_anvil_top|anvil_top_damaged_1)$/],['damaged_anvil',/^(damaged_anvil_top|anvil_top_damaged_2)$/]])
+  GAME_SHAPES.push({id,roles:{base:/^(anvil|anvil_base)$/,top},model:anvilModel,dir:{six:false,rot:{north:[0,0,0],south:[0,0,0],east:[0,90,0],west:[0,90,0]}}});
+/* items: [{stem, pack, uid}] -> [{pack, block, uids}] */
+function detectGameShapes(items){
+  const byPack=new Map();
+  for(const it of items){if(!byPack.has(it.pack))byPack.set(it.pack,[]);byPack.get(it.pack).push(it);}
+  const out=[];
+  for(const[pack,list]of byPack){
+    const stems=list.map(it=>({it,s:String(it.stem).toLowerCase()}));
+    for(const g of GAME_SHAPES){
+      const found={};
+      for(const[role,re]of Object.entries(g.roles)){const m=stems.find(x=>re.test(x.s));if(m)found[role]=m.it;}
+      for(const[role,from]of Object.entries(g.fallback||{}))if(!found[role]&&found[from])found[role]=found[from];
+      if(Object.keys(g.roles).some(r=>!found[r]))continue;
+      const textures={},need=new Map(),used=new Set(),uids=[];
+      for(const[role,it]of Object.entries(found)){
+        const ref='lib:'+it.uid;textures[role]=ref;used.add(ref);if(!uids.includes(it.uid))uids.push(it.uid);
+        need.set(texKey(ref,{}),{ref,rot:0,fx:false,fy:false,tint:null});
+      }
+      const m=g.model(),opt={native:new Set()};
+      const w=wrapModel({elements:m.elements,textures},used,opt);
+      for(const[k,v]of w.need)need.set(k,v);
+      const rep=new Set(w.rep);rep.add('builtin_shape');
+      let cubes=fitCubes(w.cubes,rep);if(!cubes.length)continue;
+      closeSides(cubes,need);
+      let flip=null;
+      if(g.wall){
+        const wm=g.wall(),ww=wrapModel({elements:wm.elements,textures},used,opt);
+        for(const[k,v]of ww.need)need.set(k,v);
+        for(const r of ww.rep)rep.add(r);
+        const wc=fitCubes(ww.cubes,rep);
+        if(wc.length)flip={cubes:wc,boxes:boxesFor(wc),mode:'wall'};
+        if(flip&&g.passable)flip.boxes.collision=false;
+      }
+      const usedKeys=new Set();for(const c of cubes.concat(flip?flip.cubes:[]))for(const f of Object.values(c.uv))usedKeys.add(f.material_instance);
+      for(const k of[...need.keys()])if(!usedKeys.has(k))need.delete(k);
+      const boxes=boxesFor(cubes);if(g.passable)boxes.collision=false;
+      out.push({pack,uids,block:{id:g.id,ns:'game',name:g.id,cubes,need,boxes,repairs:[...rep],status:statusOf([...rep]),dir:g.dir||null,upper:null,flip,support:g.support||null,light:g.light||0}});
+    }
+  }
+  return out;
 }
 /* ---- scan one archive ---- */
 async function scanArchive(archive,opt){
@@ -2748,6 +2945,7 @@ async function scanArchive(archive,opt){
     if(!cubes.length)return{skip:'no usable geometry'};
     cubes=fitCubes(cubes,rep);
     if(!cubes.length)return{skip:'outside the block limits'};
+    if(closeSides(cubes,need))rep.add('closed_open_side');
     return{cubes,need,rep};
   }
   /* at most 63 textures per block ("*" takes the 64th): keep the most used, point the rest at the first */
@@ -2767,12 +2965,21 @@ async function scanArchive(archive,opt){
     const bs=await readJson(idx,st.path,cache);
     if(!bs||typeof bs!=='object'){skip('unreadable blockstate');continue;}
     const pick=v=>Array.isArray(v)?v[0]:v;
-    let vlist=[],refs=[],upperRefs=null;
+    let vlist=[],refs=[],upperRefs=null,flipRefs=null,flipMode='half';
     if(bs.variants&&typeof bs.variants==='object'){
       for(const k of Object.keys(bs.variants)){const v=pick(bs.variants[k]);if(v&&v.model)vlist.push({props:parseKey(k),model:v.model,x:Number(v.x)||0,y:Number(v.y)||0});}
       const lower=vlist.find(v=>v.props.half==='lower'),upper=vlist.find(v=>v.props.half==='upper');
       if(lower&&upper){refs=[lower.model];upperRefs=[upper.model];}
-      else if(vlist.length)refs=[vlist[0].model];
+      else if(vlist.length){
+        /* slabs: bottom and top variants with their own models become one block that can be placed in either half */
+        const hv=v=>v.props.type||v.props.half,noFace=!vlist.some(v=>v.props.facing);
+        const bot=vlist.find(v=>hv(v)==='bottom'),top=vlist.find(v=>hv(v)==='top');
+        /* hanging: the game gives a block that can stand or hang its own "hanging" state; Bedrock does it by the face it was placed on */
+        const hs=vlist.find(v=>v.props.hanging==='false'),hh=vlist.find(v=>v.props.hanging==='true');
+        if(hs&&hh&&hs.model!==hh.model&&!(hh.x||hh.y)&&!vlist.some(v=>v.props.facing)){refs=[hs.model];flipRefs=[hh.model];flipMode='hanging';}
+        else if(noFace&&bot&&top&&bot.model!==top.model&&!(top.x||top.y)){refs=[bot.model];flipRefs=[top.model];}
+        else refs=[(vlist.find(v=>hv(v)==='bottom')||vlist[0]).model];
+      }
     }else if(Array.isArray(bs.multipart)){
       const plain=bs.multipart.filter(p=>p&&!p.when);
       for(const p of(plain.length?plain:bs.multipart.slice(0,1))){const v=pick(p&&p.apply);if(v&&v.model)refs.push(v.model);}
@@ -2786,22 +2993,29 @@ async function scanArchive(archive,opt){
       if(u.skip){rep.add('face_dropped');}   /* the top half could not be built: the block is only the bottom half */
       else{upper=u;for(const r of u.rep)rep.add(r);}
     }
+    let flip=null;
+    if(flipRefs){
+      const u=await build(flipRefs,st.ns);
+      if(!u.skip){flip=u;for(const r of u.rep)rep.add(r);}   /* if the top version cannot be built the block is simply bottom-only */
+    }
     limitInstances(main.cubes,main.need,rep);
     if(upper)limitInstances(upper.cubes,upper.need,rep);
-    const union=new Map(main.need);if(upper)for(const[k,v]of upper.need)union.set(k,v);
+    if(flip)limitInstances(flip.cubes,flip.need,rep);
+    const union=new Map(main.need);if(upper)for(const[k,v]of upper.need)union.set(k,v);if(flip)for(const[k,v]of flip.need)union.set(k,v);
     if(union.size>MAX_INSTANCES-1&&upper){rep.add('too_many_textures');}
     let id=sid(st.name);if(!id){skip('unusable name');continue;}
     if(seenIds.has(id))id=sid(st.ns+'_'+st.name);
     if(seenIds.has(id)){let k=2;while(seenIds.has(id+'_'+k))k++;id=id+'_'+k;}
     seenIds.set(id,1);
     const dir=upper?null:directionInfo(vlist);
-    if(dir)stats.directional++;if(upper)stats.tall++;
+    if(dir)stats.directional++;if(upper)stats.tall++;if(flip)stats.slabs=(stats.slabs||0)+1;
     if([...union.values()].some(v=>v.tint))stats.tinted++;
     const repairs=[...rep],status=statusOf(repairs);
     for(const r of repairs)stats.repairs[r]=(stats.repairs[r]||0)+1;
     if(status==='clean')stats.wrapped++;else if(status==='repaired')stats.repaired++;else stats.approximate++;
     blocks.push({id,ns:st.ns,name:st.name,cubes:main.cubes,need:union,boxes:boxesFor(main.cubes),repairs,status,dir,
-      upper:upper?{cubes:upper.cubes,boxes:boxesFor(upper.cubes)}:null});
+      upper:upper?{cubes:upper.cubes,boxes:boxesFor(upper.cubes)}:null,
+      flip:flip?{cubes:flip.cubes,boxes:boxesFor(flip.cubes),mode:flipMode}:null,support:flip&&flipMode==='hanging'?'floor_ceiling':null,light:0});
   }
   return{blocks,stats,archive:{idx},hasTex};
 }
@@ -2835,7 +3049,7 @@ async function loadTextures(scan,blocks,decode,nativeFile){
     }
     try{
       let img=cache.get(e.path);
-      if(!img){const d=await decode(await e.read(MAXB));
+      if(!img){const d=e.decoded?await e.decoded():await decode(await e.read(MAXB));
         /* animation strips: first frame */
         const h=d.w&&d.h>d.w&&d.h%d.w===0?d.w:d.h;img={w:d.w,h,data:d.h===h?d.data:d.data.subarray(0,d.w*h*4)};cache.set(e.path,img);}
       if(img.w!==img.h&&v.rot){miss.add(key);continue;}
@@ -2846,7 +3060,7 @@ async function loadTextures(scan,blocks,decode,nativeFile){
   }
   return{textures:out,native,missing:miss,tint};
 }
-return{familyOf,groupFamilies,flipPixels,statusOf,directionInfo,scanArchive,loadTextures,resolveModel,defaultUv,rotatePixels,VANILLA,fitCubes,boxesFor,texKey,sid,tintFor,extents,MAX_INSTANCES};
+return{detectGameShapes,openSides,closeSides,familyOf,groupFamilies,flipPixels,statusOf,directionInfo,scanArchive,loadTextures,resolveModel,defaultUv,rotatePixels,VANILLA,fitCubes,boxesFor,texKey,sid,tintFor,extents,MAX_INSTANCES};
 })();
 </script>
 
@@ -3291,6 +3505,7 @@ function tileFor(it,g,mem){
   return d;
 }
 function renderLib(keepScroll){
+  if(mode==='import'){blkRefresh();return;}
   const has=lib.items.length>0;
   $('#libBrowse').style.display=has?'':'none';
   if(!has)return;
@@ -3344,9 +3559,7 @@ function updateSelection(){
   $('#grpFold').style.display=grouped?'':'none';
   const anyOpen=lib.groups.some(g=>{const k=lib.group+'|'+g.key;return lib.open.has(k)?lib.open.get(k):(lib.view.length<=GROUP_CAP||lib.groups.length===1);});
   $('#grpFold').textContent=anyOpen?'Collapse all':'Expand all';
-  $('#selCount3').textContent=fmt(n)+' texture'+(n===1?'':'s');
-  for(const id of['addSrc','addT0','addT1','addT2','libRemove','mcAddAuto','mcAddBlock','mcAddPlant','mcAddTall'])$('#'+id).disabled=!n;
-  $('#mcMapAll').textContent='Use all '+fmt(lib.view.length)+' shown as a texture pack for the game';$('#mcMapAll').disabled=!lib.view.length;
+  for(const id of['addSrc','addT0','addT1','addT2','libRemove'])$('#'+id).disabled=!n;
 }
 let qTimer=0;
 $('#libQ').addEventListener('input',()=>{clearTimeout(qTimer);qTimer=setTimeout(()=>{lib.q=$('#libQ').value;lib.gshown.clear();renderLib();},150);});
@@ -3732,7 +3945,7 @@ $('#tabEdit').addEventListener('click',()=>setMode('edit'));
 
 /* ---------- Minecraft pack (Import items) ---------- */
 const EX_BUDGET=96*1024*1024;let exRetained=0,exMode='blocks',exBusy=false,lastResults=[];
-const EXKEY='texture_shift_export_v1',VAR_KEYS=['cube','slab','stairs','fence','wall','eighth','quarter','three_eighths','three_quarters'];
+const EXKEY='texture_shift_export_v1';
 const MC_MAX=2000;
 const mc={items:[],byId:new Map(),shown:150,urls:[]};
 const mdl={sets:[],chosen:[],ids:new Set()};
@@ -3753,98 +3966,284 @@ async function scanModels(files){
       libMsg('Found '+plural(scan.blocks.length,'custom shape')+' in '+f.name+'.');
     }catch(e){/* not a zip we can read: the texture import already reported it */}
   }
-  renderModels();
+  blkRefresh();
 }
-/* repaired and approximate shapes wait for approval; clean ones go straight to the shape library */
+/* ---------- Import items: one list of blocks, each with a picture ---------- */
+/* shapes read from mods: clean ones are ready, the others wait until you look at them and approve */
 function newSet(name,scan){
-  const lib=new Set();for(const b of scan.blocks)if(b.status==='clean')lib.add(b.id);
-  return{name,scan,q:'',lib,sel:new Set(),tab:'lib',shown:100,open:new Set()};
+  const ok=new Set();for(const b of scan.blocks)if(b.status==='clean')ok.add(b.id);
+  return{name,scan,lib:ok};
 }
-const tabList=(set,tab)=>set.scan.blocks.filter(b=>tab==='lib'?set.lib.has(b.id):!set.lib.has(b.id));
-function mdlFiltered(set,tab){const q=set.q.trim().toLowerCase();return tabList(set,tab||set.tab).filter(b=>!q||b.id.includes(q)||b.name.toLowerCase().includes(q));}
-function renderModels(){
-  const card=$('#mdlCard'),box=$('#mdlSets');box.textContent='';
-  card.style.display=mdl.sets.length?'':'none';
-  for(const set of mdl.sets){
-    const st=set.scan.stats,w=el('div','mset');
-    w.append(el('b',null,set.name));
-    const nLib=set.lib.size,nPend=set.scan.blocks.length-nLib;
-    w.append(el('div','st',fmt(set.scan.blocks.length)+' shapes · '+fmt(st.wrapped)+' clean · '+fmt(st.repaired)+' repaired · '+fmt(st.approximate)+' approximate'+(st.skipped?' · '+fmt(st.skipped)+' skipped (not buildable)':'')+(st.tall?' · '+fmt(st.tall)+' two-high':'')+(st.tinted?' · '+fmt(st.tinted)+' tinted':'')+' · '+fmt(st.directional)+' can face different directions'));
-    const seg=el('div','seg');
-    const tb=(k,t)=>{const x=el('button',set.tab===k?'on':null,t);x.type='button';x.addEventListener('click',()=>{set.tab=k;set.sel.clear();set.shown=100;renderModels();});return x;};
-    seg.append(tb('lib','Shape library ('+fmt(nLib)+')'),tb('review','Needs review ('+fmt(nPend)+')'));w.append(seg);
-    const q=document.createElement('input');q.type='search';q.placeholder='Filter by name';q.value=set.q;q.setAttribute('aria-label','Filter shapes');
-    const list=el('div','mrows'),acts=el('div','acts');
-    const rank={clean:0,repaired:1,approximate:2};
-    const memberRow=(b,sub)=>{
-      const row=el('label','mrow'+(sub?' sub':'')),cb=document.createElement('input');cb.type='checkbox';cb.checked=set.sel.has(b.id);
-      cb.addEventListener('change',()=>{if(cb.checked)set.sel.add(b.id);else set.sel.delete(b.id);fill();});
-      const sp=el('span');sp.append(el('b',null,sub?b.part:b.id));
-      const note=[];if(b.status!=='clean')note.push(b.status);if(b.dir)note.push(b.dir.six?'faces 6 ways':'faces 4 ways');
-      if(set.tab==='review')note.push(b.repairs.map(r=>REPAIR_TEXT[r]||r).join(', '));
-      if(note.length)sp.append(el('small',null,note.join(' · ')));
-      row.append(cb,sp);return row;
-    };
-    const fill=()=>{
-      list.textContent='';acts.textContent='';
-      const items=mdlFiltered(set),fams=ModelCore.groupFamilies(items),n=Math.min(set.shown,fams.length),frag=document.createDocumentFragment();
-      for(const g of fams.slice(0,n)){
-        if(g.members.length===1){frag.append(memberRow(g.members[0],false));continue;}
-        const ids=g.members.map(b=>b.id),on=ids.filter(id=>set.sel.has(id)).length;
-        const row=el('label','mrow fam'),cb=document.createElement('input');cb.type='checkbox';cb.checked=on===ids.length;cb.indeterminate=on>0&&on<ids.length;
-        cb.addEventListener('change',()=>{for(const id of ids){if(cb.checked)set.sel.add(id);else set.sel.delete(id);}fill();});
-        const sp=el('span');sp.append(el('b',null,g.key));
-        const worst=g.members.reduce((m,b)=>Math.max(m,rank[b.status]||0),0),parts=g.members.map(b=>b.part);
-        const note=[g.members.length+' pieces: '+parts.slice(0,5).join(', ')+(parts.length>5?' +'+(parts.length-5)+' more':'')];
-        if(worst)note.push('worst: '+(worst===2?'approximate':'repaired'));
-        if(g.members.some(b=>b.dir))note.push('can face different directions');
-        sp.append(el('small',null,note.join(' · ')));
-        const tg=el('button','ghost tog',set.open.has(g.key)?'Hide pieces':'Pick pieces');tg.type='button';
-        tg.addEventListener('click',e=>{e.preventDefault();if(set.open.has(g.key))set.open.delete(g.key);else set.open.add(g.key);fill();});
-        row.append(cb,sp,tg);frag.append(row);
-        if(set.open.has(g.key))for(const b of g.members)frag.append(memberRow(b,true));
-      }
-      if(!items.length)frag.append(el('div','st',set.tab==='lib'?'Nothing in the shape library yet.':'Nothing waiting for review.'));
-      if(fams.length>n){const m=el('button','ghost more','Show more ('+fmt(fams.length-n)+' left)');m.type='button';m.addEventListener('click',()=>{set.shown+=100;fill();});frag.append(m);}
-      list.append(frag);fillActs();
-    };
-    const fillActs=()=>{
-      acts.textContent='';
-      const items=mdlFiltered(set),nsel=[...set.sel].filter(id=>items.some(b=>b.id===id)).length,nfam=ModelCore.groupFamilies(items).length;
-      const btn=(t,fn,dis,pri)=>{const x=el('button',pri?'':'ghost',t);x.type='button';x.disabled=!!dis;x.addEventListener('click',fn);acts.append(x);};
-      btn('Select all '+fmt(nfam)+' block'+(nfam===1?'':'s')+' ('+fmt(items.length)+' pieces)'+(set.q.trim()?' matching':''),()=>{for(const b of items)set.sel.add(b.id);fill();},!items.length);
-      btn('Clear',()=>{set.sel.clear();fill();},!set.sel.size);
-      if(set.tab==='lib')btn('Add '+fmt(nsel)+' piece'+(nsel===1?'':'s')+' to pack',()=>{addModels(set,items.filter(b=>set.sel.has(b.id)));},!nsel,true);
-      else{
-        btn('Approve '+fmt(nsel)+' selected',()=>{for(const b of items)if(set.sel.has(b.id)){set.lib.add(b.id);set.sel.delete(b.id);}renderModels();},!nsel,true);
-        const rep=items.filter(b=>b.status==='repaired').length,app=items.filter(b=>b.status==='approximate').length;
-        if(rep)btn('Approve all '+fmt(rep)+' repaired',()=>{for(const b of items)if(b.status==='repaired')set.lib.add(b.id);set.sel.clear();renderModels();});
-        if(app)btn('Approve all '+fmt(app)+' approximate',()=>{for(const b of items)if(b.status==='approximate')set.lib.add(b.id);set.sel.clear();renderModels();});
-      }
-    };
-    q.addEventListener('input',()=>{set.q=q.value;set.shown=100;fill();});
-    const r2=el('div','row2');r2.append(q);w.append(r2,acts,list);fill();
-    const rp=Object.entries(st.repairs).sort((a,b)=>b[1]-a[1]);
-    if(rp.length||st.skipped){
-      const d=document.createElement('details');d.append(el('summary',null,'What was repaired'));
-      const lines=rp.map(([k,v])=>fmt(v)+' × '+(REPAIR_TEXT[k]||k));
-      for(const[k,v]of Object.entries(st.skips))lines.push(fmt(v)+' skipped: '+k);
-      d.append(el('div',null,lines.join(' · ')));w.append(d);
+const blk={tab:'ready',q:'',shown:100,sel:new Set(),open:new Set(),openCat:new Set(),secShown:new Map(),all:[]};
+const prevCache=new Map();
+const BLANK='data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+const WHY_BAD={builtin_shape:'rebuilt in the game\u2019s usual shape from the pack\u2019s textures, so check the picture',texture_fallback:'a missing texture was swapped for another one',face_dropped:'a side with no texture was left blank',element_skipped:'a broken piece was left out',piece_outside_limits:'a piece that was too big for Minecraft was left out',texture_approximate:'uses a game texture that cannot be turned, so a side may look off',cube_from_textures:'the shape was not understood, so it became a plain cube',too_many_textures:'it had too many textures, some were swapped'};
+const WHY_FIX={closed_open_side:'an open side was closed',texture_rotated_copy:'some sides were turned to match',uv_default:'texture positions were filled in',uv_clamped:'texture positions were pulled inside',scaled_to_limit:'shrunk a little to fit',nudged_to_limit:'a tilted piece was moved slightly to fit',clamped_to_limits:'trimmed to fit the block size',rescale_ignored:'a stretch setting was ignored'};
+const cap1=t=>t.charAt(0).toUpperCase()+t.slice(1);
+function whyText(b){
+  const bad=b.repairs.filter(r=>WHY_BAD[r]);
+  if(bad.length)return cap1(bad.slice(0,2).map(r=>WHY_BAD[r]).join('; '))+'.';
+  const fix=b.repairs.filter(r=>WHY_FIX[r]);
+  return fix.length?'Small fixes: '+fix.slice(0,3).map(r=>WHY_FIX[r]).join('; ')+'.':'Small automatic fixes.';
+}
+const SKIP_TEXT=[[/^no usable geometry/,'has no shape to draw'],[/^outside the block limits/,'is bigger than a block can be'],[/^drawn by game code/,'is drawn by the game itself (chests, beds, signs…)'],[/^needs another model loader \((.*)\)/,'needs the mod’s own model loader']];
+function skipText(k){for(const[re,t]of SKIP_TEXT)if(re.test(k))return t;return k;}
+/* shapes the game draws with code (cactus, anvil, cauldron...) rebuilt for packs that only carry their pictures */
+const gs={sets:new Map()};
+function gameSets(){
+  const det=ModelCore.detectGameShapes(lib.items.filter(it=>!mc.byId.has(it.uid)).map(it=>({stem:it.stem,pack:it.pack,uid:it.uid})));
+  const byPack=new Map(),consumed=new Set(),sets=[];
+  for(const d of det){if(!byPack.has(d.pack))byPack.set(d.pack,[]);byPack.get(d.pack).push(d);}
+  for(const[pack,list]of byPack){
+    let set=gs.sets.get(pack);
+    if(!set){set={name:'Game shapes in '+pack,scan:{archive:{idx:new Map()},stats:{skips:{}}},lib:new Set(),game:true};gs.sets.set(pack,set);}
+    set.scan.blocks=list.map(d=>d.block);
+    for(const d of list)for(const uid of d.uids){
+      consumed.add(uid);const path='assets/lib/textures/'+uid+'.png';
+      if(!set.scan.archive.idx.has(path))set.scan.archive.idx.set(path,{path,decoded:async()=>{const r=await lib.byUid.get(uid).load();return{w:r.w,h:r.h,data:r.data};}});
     }
-    box.append(w);
+    sets.push(set);
   }
+  return{sets,consumed};
 }
-const REPAIR_TEXT={texture_approximate:'game texture that cannot be turned or mirrored (used as is)',texture_rotated_copy:'turned or mirrored face (baked into a texture copy)',uv_default:'missing UV filled in',texture_fallback:'missing texture replaced by another from the same block',uv_clamped:'UV pulled inside the tile',cube_from_textures:'unknown parent model → plain cube',piece_outside_limits:'piece fully outside the 30-unit limit dropped',clamped_to_limits:'piece trimmed to the 30-unit limit',rescale_ignored:'rescale ignored',parent_unknown:'unknown parent model',face_dropped:'face without any texture dropped',element_skipped:'broken element skipped',element_without_faces:'element without faces skipped',nudged_to_limit:'tilted piece moved up to 2 units to stay inside the 30-unit limit',scaled_to_limit:'a little over 30 units: scaled down evenly to fit',too_many_textures:'more than 63 textures on one block: the least used were swapped for the most used'};
-function addModels(set,list){
-  let added=0;
-  for(const b of list){
-    const key=set.name+'|'+b.id;if(mdl.ids.has(key))continue;
-    mdl.ids.add(key);mdl.chosen.push({set,b});added++;
+function blkCollect(){
+  const gsh=gameSets(),allSets=mdl.sets.concat(gsh.sets);
+  const used=new Set(),out=[];
+  for(const set of allSets)for(const b of set.scan.blocks)for(const v of b.need.values()){const m=/^([^:]*):(.*)$/.exec(v.ref);if(m)used.add((m[1]+'/'+m[2]).toLowerCase());}
+  for(const set of allSets)for(const b of set.scan.blocks){
+    if(mdl.ids.has(set.name+'|'+b.id))continue;
+    const k='s|'+set.name+'|'+b.id;
+    out.push({k,id:b.id,kind:'shape',set,b,ready:set.lib.has(b.id),prev:prevCache.get(k)||null});
   }
-  for(const b of list)set.sel.delete(b.id);
-  mcRender();renderModels();libMsg('Added '+plural(added,'shape')+' to the Minecraft pack.');
+  for(const it of lib.items){
+    if(mc.byId.has(it.uid)||gsh.consumed.has(it.uid))continue;
+    const m=/assets\/([^/]+)\/textures\/(.+)\.png$/i.exec(it.path||'');
+    if(m&&used.has((m[1]+'/'+m[2]).toLowerCase()))continue;
+    const k='t|'+it.uid;
+    out.push({k,id:it.stem,kind:'tex',it,ready:true,prev:prevCache.get(k)||null});
+  }
+  out.sort((a,b)=>natCmp(a.id,b.id));
+  return out;
 }
-$('#mdlChosenX').addEventListener('click',()=>{mdl.chosen=[];mdl.ids.clear();mcRender();});
+function blkRefresh(){
+  blk.all=blkCollect();
+  const keys=new Set(blk.all.map(w=>w.k));
+  for(const k of[...blk.sel])if(!keys.has(k))blk.sel.delete(k);
+  blkRender();
+}
+const blkVisible=()=>{const q=blk.q.trim().toLowerCase();return blk.all.filter(w=>(blk.tab==='ready'?w.ready:!w.ready)&&(!q||w.id.toLowerCase().includes(q)));};
+function blkSummary(){
+  const nShape=blk.all.filter(w=>w.kind==='shape').length,nTex=blk.all.filter(w=>w.kind==='tex').length;
+  const ready=blk.all.filter(w=>w.ready).length,look=blk.all.length-ready;
+  const bits=[plural(blk.all.length,'block')+' to choose from'];
+  bits.push(fmt(ready)+' ready'+(look?', '+fmt(look)+' need a look':''));
+  let t=bits.join(' · ')+'.';
+  const skips={};let nskip=0;
+  for(const set of mdl.sets)for(const[k,v]of Object.entries(set.scan.stats.skips)){const t2=skipText(k);skips[t2]=(skips[t2]||0)+v;nskip+=v;}
+  const d=$('#blkSkipped');
+  if(nskip){d.style.display='';$('#blkSkippedT').textContent=fmt(nskip)+' could not be converted';$('#blkSkippedB').textContent=Object.entries(skips).sort((a,b)=>b[1]-a[1]).map(([k,v])=>fmt(v)+' × '+k).join(' · ')+'. They are left out so nothing broken reaches your pack.';}
+  else d.style.display='none';
+  return t;
+}
+function blkRender(){
+  const has=blk.all.length>0||mdl.sets.length>0||lib.items.length>0;
+  $('#blkEmpty').style.display=has?'none':'';$('#blkMain').style.display=has?'':'none';
+  $('#mcMapAll').disabled=!lib.items.length;$('#mcMapAll').textContent='Use all '+fmt(lib.items.length)+' textures as a texture pack for the game';
+  if(!has)return;
+  $('#blkSummary').textContent=blkSummary();
+  $('#blkReady').classList.toggle('on',blk.tab==='ready');$('#blkLook').classList.toggle('on',blk.tab==='look');
+  const nLook=blk.all.filter(w=>!w.ready).length;
+  $('#blkReady').textContent='Ready ('+fmt(blk.all.length-nLook)+')';$('#blkLook').textContent='Needs a look ('+fmt(nLook)+')';
+  $('#blkTabHelp').textContent=blk.tab==='ready'
+    ?'These are safe to use. Tick the ones you want, then press Add to pack.'
+    :'These came across with changes (see the note under each one). Look at the picture, tick the ones that look right and move them to Ready.';
+  blkList();
+}
+function blkRow(w,o){
+  o=o||{};
+  const row=el('label','brow'+(o.sub?' sub':'')+(o.fam?' fam':'')),cb=document.createElement('input');cb.type='checkbox';
+  if(o.ids){const on=o.ids.filter(id=>blk.sel.has(id)).length;cb.checked=on===o.ids.length;cb.indeterminate=on>0&&on<o.ids.length;
+    cb.addEventListener('change',()=>{for(const id of o.ids){if(cb.checked)blk.sel.add(id);else blk.sel.delete(id);}blkList();});
+  }else{cb.checked=blk.sel.has(w.k);cb.addEventListener('change',()=>{if(cb.checked)blk.sel.add(w.k);else blk.sel.delete(w.k);blkActs();});}
+  const nm=el('div','bn');nm.append(el('b',null,o.sub?(w.kind==='tex'&&w.part==='base'?w.id+' · '+w.it.pack:(w.part||w.id)):(o.title||w.id)));
+  if(o.note)nm.append(el('small',null,o.note));
+  const pv=document.createElement('img');pv.className='pv';pv.alt='';pv.width=56;pv.height=56;
+  if(w.prev)pv.src=w.prev;else{pv.src=BLANK;queuePreview(w,pv);}
+  row.append(cb,pv,nm);
+  return row;
+}
+const EXTRA_CATS=[['Furniture',/table|chair|stool|bench|desk|shelf|cabinet|drawer|bed|sofa|couch|wardrobe|counter|sink|bathtub|toilet/],['Lighting',/lamp|light|lantern|torch|chandelier|candle|bulb/],['Building parts',/window|door|gate|fence|wall|roof|stairs|slab|pillar|column|arch|balcony|beam|trim|corner|railing|panel|blindwall/],['Food & decor',/apple|bread|cake|food|crate|barrel|pot|vase|book|painting|banner|flag/]];
+function blkCat(key){
+  let c=ImportCore.categorize(key);
+  if(c==='Other'||c==='Plants & misc'||c==='Stone'){for(const[n,re]of EXTRA_CATS)if(re.test(key))return n;}
+  return c;
+}
+const CAT_ORDER=ImportCore.CATEGORIES.filter(c=>c!=='Other'&&c!=='Animated').concat(EXTRA_CATS.map(x=>x[0]),['Animated','Other']);
+function blkList(){
+  const list=$('#blkList');list.textContent='';
+  const vis=blkVisible(),fams=ModelCore.groupFamilies(vis),frag=document.createDocumentFragment();
+  const noteFor=w=>blk.tab==='look'&&w.kind==='shape'?whyText(w.b):(w.kind==='tex'?w.it.w+'×'+w.it.h+' texture':'');
+  const secs=new Map();
+  for(const g of fams){const c=blkCat(g.key);if(!secs.has(c))secs.set(c,[]);secs.get(c).push(g);}
+  const names=[...secs.keys()].sort((a,b)=>CAT_ORDER.indexOf(a)-CAT_ORDER.indexOf(b));
+  const searching=!!blk.q.trim(),single=names.length===1;
+  const famRows=(arr,n)=>{
+    for(const g of arr.slice(0,n)){
+      if(g.members.length===1){frag.append(blkRow(g.members[0],{note:noteFor(g.members[0])}));continue;}
+      const ids=g.members.map(w=>w.k),parts=g.members.map(w=>w.kind==='tex'&&w.id===g.key?w.it.pack:w.part);
+      const tg=el('button','ghost tog',blk.open.has(g.key)?'Hide pieces':'Pick pieces');tg.type='button';
+      const row=blkRow(g.members[0],{fam:true,title:g.key,ids,note:g.members.length+' pieces: '+parts.slice(0,5).join(', ')+(parts.length>5?' +'+(parts.length-5)+' more':'')});
+      tg.addEventListener('click',e=>{e.preventDefault();if(blk.open.has(g.key))blk.open.delete(g.key);else blk.open.add(g.key);blkList();});
+      row.append(tg);frag.append(row);
+      if(blk.open.has(g.key))for(const w of g.members)frag.append(blkRow(w,{sub:true,note:noteFor(w)}));
+    }
+  };
+  for(const c of names){
+    const arr=secs.get(c),keys=[];for(const g of arr)for(const w of g.members)keys.push(w.k);
+    const gk=blk.tab+'|'+c,open=searching||single||blk.openCat.has(gk);
+    const h=el('div','gh');
+    const tg=el('button','tg2');tg.type='button';
+    const nsel=keys.filter(k=>blk.sel.has(k)).length;
+    tg.append(el('i',null,open?'▾':'▸'),document.createTextNode(c),el('span',null,fmt(keys.length)+(nsel?' · '+fmt(nsel)+' selected':'')));
+    tg.addEventListener('click',()=>{if(blk.openCat.has(gk))blk.openCat.delete(gk);else blk.openCat.add(gk);blkList();});
+    const pick=el('button','pick2',nsel===keys.length?'Unselect':nsel?'Select rest':'Select all');pick.type='button';
+    pick.classList.toggle('all',nsel===keys.length&&nsel>0);
+    pick.addEventListener('click',()=>{for(const k of keys){if(nsel===keys.length)blk.sel.delete(k);else blk.sel.add(k);}blkList();});
+    h.append(tg,pick);frag.append(h);
+    if(open){
+      const shown=blk.secShown.get(gk)||40;
+      famRows(arr,shown);
+      if(arr.length>shown){const m=el('button','ghost more','Show more ('+fmt(arr.length-shown)+' left)');m.type='button';m.addEventListener('click',()=>{blk.secShown.set(gk,shown+60);blkList();});frag.append(m);}
+    }
+  }
+  if(!vis.length)frag.append(el('div','st',blk.q.trim()?'Nothing matches that search.':blk.tab==='ready'?'Nothing is ready yet.':'Nothing needs a look.'));
+  list.append(frag);blkActs();
+}
+function blkActs(){
+  const a=$('#blkActs');a.textContent='';
+  const vis=blkVisible(),sel=vis.filter(w=>blk.sel.has(w.k));
+  const btn=(t,fn,dis,pri)=>{const x=el('button',pri?'':'ghost',t);x.type='button';x.disabled=!!dis;x.addEventListener('click',fn);a.append(x);};
+  btn('Select all '+fmt(vis.length),()=>{for(const w of vis)blk.sel.add(w.k);blkList();},!vis.length);
+  btn('Clear',()=>{blk.sel.clear();blkList();},!sel.length);
+  if(blk.tab==='ready')btn('Add '+fmt(sel.length)+' to pack',blkAdd,!sel.length,true);
+  else btn('Looks fine: move '+fmt(sel.length)+' to Ready',()=>{for(const w of sel)w.set.lib.add(w.b.id);blk.sel.clear();blkRefresh();},!sel.length,true);
+}
+function blkAdd(){
+  const sel=blk.all.filter(w=>w.ready&&blk.sel.has(w.k));
+  const tex=sel.filter(w=>w.kind==='tex').map(w=>w.it),shapes=sel.filter(w=>w.kind==='shape');
+  const r=tex.length?addItemsToPack(tex,'auto'):{added:0,dup:0,clash:0,clashes:[],over:0};
+  let n=0;for(const w of shapes){const key=w.set.name+'|'+w.b.id;if(mdl.ids.has(key))continue;mdl.ids.add(key);mdl.chosen.push({set:w.set,b:w.b});n++;}
+  blk.sel.clear();mcRender();blkRefresh();
+  const bits=[];if(n+r.added)bits.push('Added '+plural(n+r.added,'block')+' to your pack.');
+  if(r.clash)bits.push(plural(r.clash,'texture')+' skipped because a block with the same name is already in the pack.');
+  if(r.over)bits.push(plural(r.over,'texture')+' did not fit.');
+  $('#blkMsg').textContent=bits.join(' ');
+}
+$('#blkReady').addEventListener('click',()=>{blk.tab='ready';blk.sel.clear();blk.secShown.clear();blkRender();});
+$('#blkLook').addEventListener('click',()=>{blk.tab='look';blk.sel.clear();blk.secShown.clear();blkRender();});
+let blkT=0;
+$('#blkQ').addEventListener('input',()=>{clearTimeout(blkT);blkT=setTimeout(()=>{blk.q=$('#blkQ').value;blk.secShown.clear();blkList();},150);});
+
+/* ----- the picture of a block: a small 3D view built from the same pieces and textures that go into the pack ----- */
+const prevQ=[];let prevBusy=false;
+function queuePreview(w,im){prevQ.push([w,im]);if(!prevBusy)pumpPreview();}
+async function pumpPreview(){
+  prevBusy=true;
+  while(prevQ.length){
+    if(exBusy){await new Promise(r=>setTimeout(r,200));continue;}
+    const[w,im]=prevQ.shift();
+    if(!w.prev)w.prev=prevCache.get(w.k)||null;
+    if(!w.prev){
+      try{w.prev=await makePreview(w);}catch(e){w.prev=BLANK;}
+      prevCache.set(w.k,w.prev);
+    }
+    im.src=w.prev;
+    if(prevQ.length%3===0)await new Promise(r=>requestAnimationFrame(r));
+  }
+  prevBusy=false;
+}
+const TINTS={grass:[124,189,107],default_foliage:[89,174,48],birch_foliage:[128,167,85],evergreen_foliage:[97,153,97],dry_foliage:[169,136,94],water:[63,118,228]};
+function pixCanvas(rgba,w,h,tint,shade){
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  const d=new Uint8ClampedArray(rgba.length);
+  const t=tint&&TINTS[tint]?TINTS[tint]:[255,255,255];
+  for(let i=0;i<rgba.length;i+=4){d[i]=rgba[i]*t[0]/255*shade;d[i+1]=rgba[i+1]*t[1]/255*shade;d[i+2]=rgba[i+2]*t[2]/255*shade;d[i+3]=rgba[i+3];}
+  c.getContext('2d').putImageData(new ImageData(d,w,h),0,0);return c;
+}
+/* cubes: [{origin,size,rotation?,pivot?,uv:{face:{uv,uv_size,material_instance}}}], texOf(key)->{rgba,w,h,tint}|null */
+function isoPicture(cubes,texOf,S){
+  const C=Math.cos(Math.PI/6),proj=p=>[(p[0]-p[2])*C,(p[0]+p[2])*0.5-p[1]];
+  const faces=[];
+  for(const c of cubes){
+    const[x0,y0,z0]=c.origin,x1=x0+c.size[0],y1=y0+c.size[1],z1=z0+c.size[2];
+    let T=p=>p,N=n=>n;
+    if(c.rotation&&c.pivot){
+      const R=c.rotation.map(v=>v*Math.PI/180),pv=c.pivot;
+      const rot=(x,y,z)=>{let cs=Math.cos(R[0]),sn=Math.sin(R[0]);[y,z]=[y*cs-z*sn,y*sn+z*cs];cs=Math.cos(R[1]);sn=Math.sin(R[1]);[x,z]=[x*cs+z*sn,-x*sn+z*cs];cs=Math.cos(R[2]);sn=Math.sin(R[2]);[x,y]=[x*cs-y*sn,x*sn+y*cs];return[x,y,z];};
+      T=p=>{const r=rot(p[0]-pv[0],p[1]-pv[1],p[2]-pv[2]);return[r[0]+pv[0],r[1]+pv[1],r[2]+pv[2]];};
+      N=n=>rot(n[0],n[1],n[2]);
+    }
+    const D={up:{n:[0,1,0],tl:[x0,y1,z0],tr:[x1,y1,z0],bl:[x0,y1,z1]},down:{n:[0,-1,0],tl:[x0,y0,z1],tr:[x1,y0,z1],bl:[x0,y0,z0]},
+      south:{n:[0,0,1],tl:[x0,y1,z1],tr:[x1,y1,z1],bl:[x0,y0,z1]},north:{n:[0,0,-1],tl:[x1,y1,z0],tr:[x0,y1,z0],bl:[x1,y0,z0]},
+      east:{n:[1,0,0],tl:[x1,y1,z1],tr:[x1,y1,z0],bl:[x1,y0,z1]},west:{n:[-1,0,0],tl:[x0,y1,z0],tr:[x0,y1,z1],bl:[x0,y0,z0]}};
+    for(const[d,f]of Object.entries(c.uv)){
+      const g=D[d];if(!g)continue;
+      const n=N(g.n);if(n[0]+n[1]+n[2]<0.001)continue;
+      const tl=T(g.tl),tr=T(g.tr),bl=T(g.bl);
+      faces.push({f,tl,tr,bl,n,depth:(tr[0]+bl[0]+tr[1]+bl[1]+tr[2]+bl[2])/2});
+    }
+  }
+  const cv=document.createElement('canvas');cv.width=cv.height=S;
+  if(!faces.length)return cv;
+  let lo=[1e9,1e9],hi=[-1e9,-1e9];
+  for(const f of faces){
+    const br=[f.tr[0]+f.bl[0]-f.tl[0],f.tr[1]+f.bl[1]-f.tl[1],f.tr[2]+f.bl[2]-f.tl[2]];
+    for(const p of[f.tl,f.tr,f.bl,br]){const q=proj(p);lo=[Math.min(lo[0],q[0]),Math.min(lo[1],q[1])];hi=[Math.max(hi[0],q[0]),Math.max(hi[1],q[1])];}
+  }
+  const sc=(S-8)/Math.max(hi[0]-lo[0],hi[1]-lo[1],1),ox=(S-(hi[0]-lo[0])*sc)/2-lo[0]*sc,oy=(S-(hi[1]-lo[1])*sc)/2-lo[1]*sc;
+  const ctx=cv.getContext('2d');ctx.imageSmoothingEnabled=false;
+  const cache=new Map();
+  const canvasFor=(key,lvl)=>{
+    const ck=key+'|'+lvl;if(cache.has(ck))return cache.get(ck);
+    const t=texOf(key);let r=null;
+    if(t)r={cv:pixCanvas(t.rgba,t.w,t.h,t.tint,lvl/4),w:t.w,h:t.h};
+    cache.set(ck,r);return r;
+  };
+  faces.sort((a,b)=>a.depth-b.depth);
+  for(const f of faces){
+    const light=Math.max(0,Math.min(1,0.55+0.45*(0.7*f.n[1]+0.3*f.n[2]+0.12*f.n[0]))),lvl=Math.max(2,Math.round(light*4));
+    const t=canvasFor(f.f.material_instance,lvl);if(!t)continue;
+    const sw=f.f.uv_size[0]*t.w/16,sh=f.f.uv_size[1]*t.h/16;if(!(sw>0&&sh>0))continue;
+    const sx=f.f.uv[0]*t.w/16,sy=f.f.uv[1]*t.h/16;
+    const P0=proj(f.tl),P1=proj(f.tr),P2=proj(f.bl);
+    const a=(P1[0]-P0[0])*sc/sw,b=(P1[1]-P0[1])*sc/sw,c2=(P2[0]-P0[0])*sc/sh,d=(P2[1]-P0[1])*sc/sh;
+    if(Math.abs(a*d-b*c2)<1e-6)continue;
+    ctx.setTransform(a,b,c2,d,P0[0]*sc+ox,P0[1]*sc+oy);
+    ctx.drawImage(t.cv,sx,sy,sw,sh,0,0,sw,sh);
+  }
+  ctx.setTransform(1,0,0,1,0,0);
+  return cv;
+}
+const flatPic=(rgba,w,h,S)=>{const c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');x.imageSmoothingEnabled=false;x.drawImage(pixCanvas(rgba,w,h,null,1),0,0,S*1,S*1);return c;};
+function crossCubes(){const f={uv:[0,0],uv_size:[16,16],material_instance:'t'};return[{origin:[-8,0,0],size:[16,16,0],uv:{north:f,south:f}},{origin:[0,0,-8],size:[0,16,16],uv:{west:f,east:f}}];}
+function unitCube(){const f={uv:[0,0],uv_size:[16,16],material_instance:'t'};return[{origin:[-8,0,-8],size:[16,16,16],uv:{up:f,south:f,east:f,north:f,west:f,down:f}}];}
+async function makePreview(w){
+  const S=112;
+  if(w.kind==='tex'){
+    const it=w.it,t=it.thumb.t,px=new Uint8Array(it.thumb.data);
+    const kind=w.kind2||autoKind(it);
+    if(kind!=='block')return isoPicture(crossCubes(),()=>({rgba:px,w:t,h:t}),S).toDataURL();
+    return isoPicture(unitCube(),()=>({rgba:px,w:t,h:t}),S).toDataURL();
+  }
+  const b=w.b;
+  const lt=await ModelCore.loadTextures(w.set.scan,[b],async bytes=>decodeBrowser(bytes,'png'),EC.nativeFile);
+  const grey=new Uint8Array(16*16*4);for(let i=0;i<256;i++){const e=(i%16===0||i<16||i>=240||i%16===15);grey[i*4]=grey[i*4+1]=grey[i*4+2]=e?110:150;grey[i*4+3]=255;}
+  const texOf=key=>{const t=lt.textures.get(key);if(t)return{rgba:t.rgba,w:t.w,h:t.h,tint:lt.tint.get(key)};return lt.native.has(key)?{rgba:grey,w:16,h:16}:null;};
+  let cubes=b.cubes.slice(0,400);
+  if(b.upper)cubes=cubes.concat(b.upper.cubes.slice(0,200).map(c=>Object.assign({},c,{origin:[c.origin[0],c.origin[1]+16,c.origin[2]],pivot:c.pivot?[c.pivot[0],c.pivot[1]+16,c.pivot[2]]:undefined})));
+  return isoPicture(cubes,texOf,S).toDataURL();
+}
+
 const KIND_LABEL={block:'Block',plant:'Plant',tall:'Tall plant'};
 const PLANT_RE=/(sapling|flower|tulip|orchid|allium|bluet|cornflower|dandelion|poppy|lily|rose|peony|lilac|fern|grass|bush|vine|mushroom|roots|sprouts|fungus|crop|wheat|carrots|potatoes|beetroots|seagrass|kelp|bamboo|cane|reeds|sunflower|pitcher|torchflower|petals|weeds|shrub|plant)/;
 const NOT_PLANT_RE=/(block|planks|log|wood|brick|stone|dirt|carpet|path|side$|snow|nylium|wart|crate|farmland)/;
@@ -3853,50 +4252,106 @@ function guessKind(stem){
   if(!PLANT_RE.test(core)||NOT_PLANT_RE.test(core))return'block';
   return core!==s?'tall':'plant';
 }
-function exVariants(){const v={};for(const k of VAR_KEYS)v[k]=$('#exV_'+k).checked;return v;}
-function exSavePrefs(){try{localStorage.setItem(EXKEY,JSON.stringify({mode:exMode,name:$('#exName').value,ns:$('#exNs').value,nsTouched:!!$('#exNs').dataset.touched,v:exVariants(),corner:$('#exCorner').checked}));}catch(e){}}
+/* a picture that does not fill its tile (transparent edges, mostly empty) is a sprite such as a flower or a branch, not a block face */
+function autoKind(it){
+  if(it.ak)return it.ak;
+  let k=guessKind(it.stem);
+  if(k==='block'&&it.thumb){
+    const t=it.thumb.t,d=it.thumb.data;let op=0,bo=0,bn=0;
+    for(let y=0;y<t;y++)for(let x=0;x<t;x++){
+      const a=d[(y*t+x)*4+3]>40;
+      if(a)op++;
+      if(x===0||y===0||x===t-1||y===t-1){bn++;if(a)bo++;}
+    }
+    if(op/(t*t)<0.7&&bo/bn<0.5)k='plant';
+  }
+  it.ak=k;return k;
+}
+function exVariants(){return{cube:true};}
+function exSavePrefs(){try{localStorage.setItem(EXKEY,JSON.stringify({mode:exMode,name:$('#exName').value,ns:$('#exNs').value,nsTouched:!!$('#exNs').dataset.touched,corner:$('#exCorner').checked}));}catch(e){}}
 function exLoadPrefs(){
   try{
     const p=JSON.parse(localStorage.getItem(EXKEY)||'null');if(!p)return;
     if(p.name)$('#exName').value=String(p.name).slice(0,40);
     if(p.ns){$('#exNs').value=String(p.ns).slice(0,16);if(p.nsTouched)$('#exNs').dataset.touched='1';}
-    if(p.v)for(const k of VAR_KEYS)if(k in p.v)$('#exV_'+k).checked=!!p.v[k];
     $('#exCorner').checked=!!p.corner;
     exMode=p.mode==='replace'?'replace':'blocks';
   }catch(e){}
 }
 const EX_STUB=new Uint8Array([0,0,0,255]);
-function exStubEntries(){return mc.items.map(m=>({stem:m.stem,w:m.w,h:m.h,rgba:EX_STUB,cat:'',kind:m.kind}));}
+function exStubEntries(){return mc.items.map(m=>({stem:m.stem,w:m.w,h:m.h,rgba:EX_STUB,cat:'',kind:m.kind,extra:m.kind==='block'?m.extra:null}));}
 
-/* the list */
+/* the list of what will be built */
+const EXTRA_KEYS=[['slab','Slab'],['stairs','Stairs'],['fence','Fence'],['wall','Wall'],['eighth','⅛'],['quarter','¼'],['three_eighths','⅜'],['three_quarters','¾']];
 function mcCounts(){const c={block:0,plant:0,tall:0};for(const m of mc.items)c[m.kind]++;return c;}
 function mcHead(){
-  const n=mc.items.length,c=mcCounts(),bits=[];
-  if(c.block)bits.push(plural(c.block,'block texture'));
+  const n=mc.items.length,nm=mdl.chosen.length,bits=[];
+  if(n+nm)bits.push(plural(n+nm,'block'));
+  const c=mcCounts();
   if(c.plant)bits.push(plural(c.plant,'plant'));
   if(c.tall)bits.push(plural(c.tall,'tall plant texture'));
-  $('#mcCount').textContent=n?bits.join(' · '):'';
-  const nm=mdl.chosen.length;
-  $('#mdlChosen').style.display=nm?'':'none';$('#mdlChosenT').textContent=plural(nm,'model block');
-  $('#mcEmpty').style.display=n||nm?'none':'';$('#mcTools').style.display=n?'':'none';
+  $('#mcCount').textContent=bits.join(' · ');
+  $('#mcEmpty').style.display=n||nm?'none':'';$('#mcTools').style.display=n||nm?'':'none';
+  $('#mcMore').style.display=mc.items.some(m=>m.kind==='block')?'':'none';
+}
+function mcBulk(){
+  const box=$('#mcBulk');box.textContent='';
+  const rows=mc.items.filter(m=>m.kind==='block');
+  for(const[k,t]of EXTRA_KEYS){
+    const on=rows.length>0&&rows.every(m=>m.extra&&m.extra[k]);
+    const b=el('button',on?'ghost sm on':'ghost sm',t);b.type='button';
+    b.addEventListener('click',()=>{for(const m of rows){m.extra=m.extra||{};m.extra[k]=!on;}mcRender();});
+    box.append(b);
+  }
+}
+function packPreview(key,w,im){
+  const c=prevCache.get(key);
+  if(c){im.src=c;return;}
+  im.src=BLANK;queuePreview(w,im);
 }
 function mcRender(){
-  mcHead();
+  mcHead();mcBulk();
   const list=$('#mcList');list.textContent='';
-  const frag=document.createDocumentFragment(),n=Math.min(mc.shown,mc.items.length);
-  for(let i=0;i<n;i++){
-    const m=mc.items[i],row=el('div','mcrow');
-    const img=document.createElement('img');img.alt='';img.src=m.it?entryFor(m.it).thumb:m.thumbURL;
-    const nm=el('div','mcn');nm.append(el('b',null,m.stem),el('small',null,m.w+'×'+m.h));
+  const frag=document.createDocumentFragment();
+  let shown=0;const cap=mc.shown;
+  for(const m of mc.items){
+    if(shown++>=cap)break;
+    const row=el('div','mcrow wrap'),img=document.createElement('img');img.className='pv';img.alt='';
+    if(m.it)packPreview('t|'+m.it.uid+'|'+m.kind,{k:'t|'+m.it.uid+'|'+m.kind,kind:'tex',kind2:m.kind,it:m.it,id:m.stem},img);else img.src=m.thumbURL;
+    const nm=el('div','mcn');nm.append(el('b',null,m.stem),el('small',null,m.w+'×'+m.h+' texture'));
     const sel=document.createElement('select');sel.setAttribute('aria-label','Kind of '+m.stem);
     for(const k of['block','plant','tall'])sel.add(new Option(KIND_LABEL[k],k));
     sel.value=m.kind;
-    sel.addEventListener('change',()=>{m.kind=sel.value;mcHead();exRefresh();});
+    sel.addEventListener('change',()=>{m.kind=sel.value;mcRender();});
     const x=el('button','ghost sm','✕');x.type='button';x.setAttribute('aria-label','Remove '+m.stem);
     x.addEventListener('click',()=>mcRemove(m));
-    row.append(img,nm,sel,x);frag.append(row);
+    row.append(img,nm,x);
+    const ctl=el('div','ctl');ctl.append(sel);
+    let xs=null;
+    if(m.kind==='block'){
+      const plus=el('button','ghost sm',(m.extra&&Object.values(m.extra).some(Boolean))?'+ shapes ('+Object.values(m.extra).filter(Boolean).length+')':'+ shapes');plus.type='button';
+      plus.addEventListener('click',()=>{m.openX=!m.openX;mcRender();});
+      ctl.append(plus);
+      if(m.openX){
+        xs=el('div','xs');xs.style.flexBasis='100%';
+        for(const[k,t]of EXTRA_KEYS){const on=!!(m.extra&&m.extra[k]);const b=el('button',on?'ghost sm on':'ghost sm',t);b.type='button';
+          b.addEventListener('click',()=>{m.extra=m.extra||{};m.extra[k]=!on;mcRender();});xs.append(b);}
+      }
+    }
+    row.append(ctl);if(xs)row.append(xs);
+    frag.append(row);
   }
-  if(mc.items.length>n){const b=el('button','ghost more','Show more ('+fmt(mc.items.length-n)+' left)');b.type='button';b.addEventListener('click',()=>{mc.shown+=150;mcRender();});frag.append(b);}
+  for(const ch of mdl.chosen){
+    if(shown++>=cap)break;
+    const k='s|'+ch.set.name+'|'+ch.b.id,row=el('div','mcrow wrap'),img=document.createElement('img');img.className='pv';img.alt='';
+    packPreview(k,{k,kind:'shape',set:ch.set,b:ch.b,id:ch.b.id},img);
+    const nm=el('div','mcn');nm.append(el('b',null,ch.b.id),el('small',null,'from '+ch.set.name));
+    const x=el('button','ghost sm','✕');x.type='button';x.setAttribute('aria-label','Remove '+ch.b.id);
+    x.addEventListener('click',()=>{mdl.chosen=mdl.chosen.filter(y=>y!==ch);mdl.ids.delete(ch.set.name+'|'+ch.b.id);mcRender();if(mode==='import')blkRefresh();});
+    row.append(img,nm,x);frag.append(row);
+  }
+  const total=mc.items.length+mdl.chosen.length;
+  if(total>shown){const b=el('button','ghost more','Show more ('+fmt(total-shown)+' left)');b.type='button';b.addEventListener('click',()=>{mc.shown+=150;mcRender();});frag.append(b);}
   list.append(frag);
   exRefresh();
 }
@@ -3918,7 +4373,7 @@ function addItemsToPack(items,kindMode){
     const k=nameKey(it.stem);
     if(names.has(k)){clash++;if(clashes.length<3)clashes.push(it.stem);continue;}
     if(mc.items.length>=MC_MAX){over++;continue;}
-    const m={id:it.uid,stem:it.stem,w:it.w,h:it.h,kind:kindMode==='auto'?guessKind(it.stem):kindMode,it};
+    const m={id:it.uid,stem:it.stem,w:it.w,h:it.h,kind:kindMode==='auto'?autoKind(it):kindMode,it};
     mcPush(m);names.set(k,m);added++;
   }
   return{added,dup,clash,clashes,over};
@@ -3928,30 +4383,15 @@ function packMsg(r){
     +(r.clash?' '+plural(r.clash,'texture')+' skipped because a texture with the same name is already in the pack ('+r.clashes.join(', ')+(r.clash>r.clashes.length?'…':'')+'). Remove that one first to swap it.':'')
     +(r.over?' '+plural(r.over,'texture')+' did not fit (the pack holds '+fmt(MC_MAX)+').':'');
 }
-function addToPack(kindMode){
-  const items=lib.items.filter(it=>lib.sel.has(it.uid));
-  const r=addItemsToPack(items,kindMode);
-  lib.sel.clear();mcRender();renderLib(true);
-  libMsg(packMsg(r),r.over>0);
-}
-$('#mcAddAuto').addEventListener('click',()=>addToPack('auto'));
-$('#mcAddBlock').addEventListener('click',()=>addToPack('block'));
-$('#mcAddPlant').addEventListener('click',()=>addToPack('plant'));
-$('#mcAddTall').addEventListener('click',()=>addToPack('tall'));
 $('#mcMapAll').addEventListener('click',()=>{
-  const r=addItemsToPack(lib.view,'auto');
-  exMode='replace';exSavePrefs();lib.sel.clear();mcRender();renderLib(true);
-  libMsg(packMsg(r)+' Set to replace the game\u2019s own textures.',r.over>0);
+  const r=addItemsToPack(lib.items,'auto');
+  exMode='replace';exSavePrefs();mcRender();blkRefresh();
+  $('#blkMsg').textContent=packMsg(r)+' Set to replace the game\u2019s own textures.';
   $('#exportCard').scrollIntoView({behavior:'smooth',block:'start'});
 });
-function mcSetAll(k){for(const m of mc.items)m.kind=k==='auto'?guessKind(m.stem):k;mcRender();}
-$('#mcAllAuto').addEventListener('click',()=>mcSetAll('auto'));
-$('#mcAllBlock').addEventListener('click',()=>mcSetAll('block'));
-$('#mcAllPlant').addEventListener('click',()=>mcSetAll('plant'));
-$('#mcAllTall').addEventListener('click',()=>mcSetAll('tall'));
 $('#mcClear').addEventListener('click',()=>{
   for(const m of mc.items)if(m.thumbURL)URL.revokeObjectURL(m.thumbURL);
-  mc.items=[];mc.byId.clear();mc.shown=150;$('#exOut').textContent='';mcRender();if(mode==='import')renderLib(true);
+  mc.items=[];mc.byId.clear();mdl.chosen=[];mdl.ids.clear();mc.shown=150;$('#exOut').textContent='';mcRender();if(mode==='import')renderLib(true);
 });
 
 /* converted results -> pack */
@@ -3987,27 +4427,24 @@ function exLayout(){
   $('#exBlocks').classList.toggle('on',blocks);$('#exReplace').classList.toggle('on',!blocks);
   $('#exBlockOpts').style.display=blocks?'':'none';
   $('#exInfo').textContent=blocks
-    ?'Makes custom blocks you can build with: your textures as full blocks and any shapes ticked below, plants, and tall plants. Gives you one add-on file to open in Minecraft.'
-    :'Swaps the game\'s own block textures for yours, matched by name (Java names like oak_planks are understood). Gives you a resource pack. Kinds are ignored here.';
-  $('#exCornerRow').style.opacity=$('#exV_stairs').checked?'1':'.45';
-  $('#exCorner').disabled=!$('#exV_stairs').checked;
+    ?'Makes new blocks you can build with from everything in your pack and gives you one add-on file to open in Minecraft.'
+    :'Swaps the game\'s own block textures for yours, matched by name (Java names like oak_planks are understood) and gives you a resource pack.';
   $('#exBuild').textContent=blocks?'Build add-on':'Build resource pack';
 }
 function exSummary(){
   const box=$('#exSummary');box.className='';
   const n=mc.items.length,nm=mdl.chosen.length;
-  if(!n&&!(exMode==='blocks'&&nm)){box.textContent='Add textures to the pack above first.';$('#exBuild').disabled=true;return;}
+  if(!n&&!(exMode==='blocks'&&nm)){box.textContent='Add blocks to your pack above first.';$('#exBuild').disabled=true;return;}
   if(exMode==='blocks'){
     const ns=$('#exNs').value.trim(),v=exVariants();
     if(!EC.validNs(ns)){box.textContent='The namespace needs 1 to 16 lowercase letters, digits or underscores (and cannot be "minecraft").';box.className='bad';$('#exBuild').disabled=true;return;}
     const c=mcCounts();
-    if(!Object.values(v).some(Boolean)&&!c.plant&&!c.tall&&!nm){box.textContent='Tick at least one block type.';box.className='bad';$('#exBuild').disabled=true;return;}
     const plan=EC.planNew(exStubEntries(),{namespace:ns,variants:v});
     const by={};for(const b of plan.blocks)by[b.shape]=(by[b.shape]||0)+1;
     const bits=[];const solid=plan.blocks.length-(by.plant||0)-(by.tall||0);
-    if(nm)bits.push(plural(nm,'mod shape'));
+    if(nm)bits.push(plural(nm,'block')+' from mods');
     if(solid)bits.push(plural(solid,'block'));if(by.plant)bits.push(plural(by.plant,'plant'));if(by.tall)bits.push(plural(by.tall,'tall plant'));
-    box.textContent=(plan.blocks.length||nm?bits.join(' + ')+' will be made'+(n?' from '+plural(n,'texture'):'')+'.':'Nothing would be made with these settings.')
+    box.textContent=(plan.blocks.length||nm?bits.join(' + ')+' will be made.':'Nothing would be made with these settings.')
       +(plan.skipped.length?' '+plan.skipped.length+' skipped (names).':'');
     $('#exBuild').disabled=exBusy||!(plan.blocks.length||nm);
   }else{
@@ -4042,7 +4479,7 @@ async function buildExport(){
       const m=mc.items[i];
       note('Preparing textures… '+(i+1)+' / '+mc.items.length);
       const px=await mcPixels(m);
-      entries.push({stem:m.stem,w:px.w,h:px.h,rgba:px.rgba,cat:ImportCore.categorize(m.stem),kind:m.kind});
+      entries.push({stem:m.stem,w:px.w,h:px.h,rgba:px.rgba,cat:ImportCore.categorize(m.stem),kind:m.kind,extra:m.kind==='block'?m.extra:null});
       if(i%25===24)await new Promise(r=>setTimeout(r,0));
     }
     let models=null;
@@ -4061,7 +4498,7 @@ async function buildExport(){
     note('Building…');
     const name=$('#exName').value.trim()||'Texture Shift';
     const r=exMode==='blocks'
-      ?await EC.buildAddon(entries,{namespace:$('#exNs').value.trim(),packName:name,variants:exVariants(),cornerStairs:$('#exCorner').checked&&$('#exV_stairs').checked,models})
+      ?await EC.buildAddon(entries,{namespace:$('#exNs').value.trim(),packName:name,variants:exVariants(),cornerStairs:$('#exCorner').checked,models})
       :await EC.buildReplacePack(entries,{packName:name});
     const bytes=await EC.makeZipBytes(r.files);
     const ext=r.kind==='addon'?'.mcaddon':'.mcpack',fname=safeName(r.folder,'Texture Shift')+ext;
@@ -4092,7 +4529,6 @@ $('#exBlocks').addEventListener('click',()=>{exMode='blocks';exSavePrefs();exRef
 $('#exReplace').addEventListener('click',()=>{exMode='replace';exSavePrefs();exRefresh();});
 $('#exName').addEventListener('input',()=>{const ns=$('#exNs');if(!ns.dataset.touched)ns.value=EC.sanitizeNs($('#exName').value)||'tshift';exSavePrefs();exSummary();});
 $('#exNs').addEventListener('input',()=>{const ns=$('#exNs');ns.dataset.touched='1';ns.value=ns.value.toLowerCase().replace(/[^a-z0-9_]/g,'');exSavePrefs();exSummary();});
-for(const k of VAR_KEYS)$('#exV_'+k).addEventListener('change',()=>{exSavePrefs();exRefresh();});
 $('#exCorner').addEventListener('change',exSavePrefs);
 $('#exBuild').addEventListener('click',buildExport);
 
