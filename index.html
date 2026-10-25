@@ -2374,6 +2374,7 @@ function mirrorBlockFaces(b,tex,mir0){
   if(b.conn)nb.conn={masks:b.conn.masks.map(m=>Object.assign({},m,{cubes:list(m.cubes)}))};
   if(b.toggle)nb.toggle=Object.assign({},b.toggle,{shapes:b.toggle.shapes.map(e=>Object.assign({},e,{cubes:list(e.cubes)}))});
   if(b.stack)nb.stack=Object.assign({},b.stack,{shapes:b.stack.shapes.map(e=>Object.assign({},e,{cubes:list(e.cubes)}))});
+  if(b.looks)nb.looks=Object.assign({},b.looks,{members:b.looks.members.map(m=>Object.assign({},m,{block:mirrorBlockFaces(m.block,tex,mir0)}))});
   nb.need=new Map(b.need);
   for(const[k,r]of keyCache)if(r!==k)nb.need.delete(k);
   for(const[k,v]of needAdd)nb.need.set(k,v);
@@ -2809,7 +2810,83 @@ function toggleBlockParts(b,ns,tex,nativeKeys,keyOf){
   mats.forEach((m,i)=>{for(const k of m.usedKeys)if(!out.keys.includes(k))out.keys.push(k);if(i>0)out.geoConn.push({name:'_'+sh[i].key,geo:modelGeometryDoc(gid(i),sh[i].cubes,m.keyMap,mir)});});
   return out;
 }
+/* ---------- look states: one block, a state per look-changing Java property, one shape per distinct look ----------
+   Candle light 0..3, a chair's toggle 1..4, a table's shape: the Java values become a Bedrock block state; permutations pick the geometry
+   and textures of that look. Using the block with an empty hand moves to the next value (sneak + empty hand moves the second state). */
+const cycleScript=ns=>`system.beforeEvents.startup.subscribe((initEvent) => {
+  initEvent.blockComponentRegistry.registerCustomComponent("${ns}:cycle_look", {
+    onPlayerInteract(event, parameterData) {
+      const states = parameterData?.params?.states ?? [];
+      const player = event.player;
+      if (!states.length || !player) return;
+      const inv = player.getComponent("minecraft:inventory")?.container;
+      if (inv?.getItem(player.selectedSlotIndex)) return;
+      const cfg = states[player.isSneaking && states.length > 1 ? 1 : 0];
+      const cur = event.block.permutation.getState(cfg.state);
+      const next = cfg.values[(cfg.values.indexOf(cur) + 1) % cfg.values.length];
+      event.block.setPermutation(event.block.permutation.withState(cfg.state, next));
+    }
+  });
+});
+`;
+/* ---- light given off: an educated guess (the Java models do not say how bright a block is) ----
+   Vanilla's own levels are the guide: a lit candle gives 3 for each candle, a torch 14, a lantern, lamp or campfire 15. */
+const LIT_PROP=/^(lit|light|lights|lighting|on|powered|burning|flame|fire|glow|active)$/,COUNT_PROP=/^(candles?|count|amount|number|toggle|level|flames?)$/;
+const NOT_LIGHT=/(unlit|_off$|_off_|chain|post|hook|holder|plate|stand|pole|frame|shade|base|bracket|broken|dead|burnt|burned)/;
+function lightLevel(id,count){
+  if(/candle/.test(id))return Math.min(15,3*Math.max(1,Math.min(4,count||1)));
+  if(/torch/.test(id))return 14;
+  if(/(lantern|lamp|chandelier|brazier|campfire|sconce|fireplace|fire|lava)/.test(id)||/(^|_)lit(_|$)/.test(id))return 15;
+  return 0;
+}
+/* one look of a block (its property values) -> level, or null when nothing says whether it is lit */
+function guessLook(id,props,vals){
+  if(NOT_LIGHT.test(id)&&!/candle|lantern|lamp/.test(id))return null;
+  let lit=null,count=0;
+  for(const pr of props){
+    const raw=(vals[pr.name]||[])[0];if(raw===undefined)continue;
+    if(LIT_PROP.test(pr.name)){const r=String(raw).toLowerCase();lit=!(r==='false'||r==='0'||r==='off'||r==='unlit'||r==='none');}
+    else if(COUNT_PROP.test(pr.name)&&/^\d+$/.test(String(raw)))count=Math.max(count,+raw);
+  }
+  if(lit===null)return null;
+  return lit?lightLevel(id,count):0;
+}
+function lookBlockParts(b,ns,tex,nativeKeys,keyOf){
+  const L=b.looks,keep={famN:b.famN,cat:b.cat,menu:b.menu,piece:b.piece,support:b.support,light:b.light};
+  const parts=L.members.map((m,i)=>modelBlockPartsOne(Object.assign({},m.block,keep,{id:i===0?b.id:b.id+'_l'+i,mirrorX:b.mirrorX,noGuess:true}),ns,tex,nativeKeys,keyOf));
+  if(parts.some(p=>!p))return null;
+  if(parts.some(p=>p.geoUp||p.geoTop||p.geoExtra))throw new Error('the looks of this block include a tall, slab or multi-block shape');
+  const docs=parts.map(p=>p.doc['minecraft:block']),tj=d=>JSON.stringify([d.description.traits||null,d.description.states||null]);
+  if(docs.some(d=>tj(d)!==tj(docs[0])))throw new Error('the looks of this block have different placement rules');
+  const stateDefs={};
+  for(const pr of L.props){const n=ns+':'+pr.state;if(docs[0].description.states&&docs[0].description.states[n])throw new Error('state name clash: '+n);stateDefs[n]=pr.values;}
+  const doc=JSON.parse(JSON.stringify(parts[0].doc)),bk=doc['minecraft:block'];
+  const fv=v=>v.split('.').map(Number),newest=parts.map(p=>p.doc.format_version).reduce((a,c)=>{const x=fv(a),y=fv(c);for(let i=0;i<3;i++){if(y[i]>x[i])return c;if(y[i]<x[i])return a;}return a;});
+  doc.format_version=newest;
+  bk.description.states=Object.assign({},bk.description.states||{},stateDefs);
+  bk.components[ns+':cycle_look']={states:L.props.map(pr=>({state:ns+':'+pr.state,values:pr.values}))};
+  const condFor=vals=>L.props.map(pr=>'('+(vals[pr.name]||[]).map(raw=>cond(ns+':'+pr.state,pr.values[pr.raw.indexOf(raw)])).join(' || ')+')').join(' && ');
+  const levels=L.members.map(m=>guessLook(b.id,L.props,m.vals));
+  if(levels.some(x=>x>0)){docs.forEach((d,i)=>{if(d.components['minecraft:light_emission']===undefined)d.components['minecraft:light_emission']=levels[i]||0;});bk.components['minecraft:light_emission']=docs[0].components['minecraft:light_emission'];}
+  const perms=[];
+  docs.forEach((d,i)=>{
+    const c=condFor(L.members[i].vals);
+    perms.push({condition:c,components:JSON.parse(JSON.stringify(d.components))});
+    for(const pm of d.permutations||[])perms.push({condition:'('+pm.condition+') && '+c,components:pm.components});
+  });
+  bk.permutations=perms;
+  const out={doc,geo:parts[0].geo,keys:[],standInKeys:[],toggle:true,mount:true,look:true,geoConn:(parts[0].geoConn||[]).slice()};
+  parts.forEach((p,i)=>{
+    for(const k of p.keys)if(!out.keys.includes(k))out.keys.push(k);
+    for(const k of p.standInKeys||[])if(!out.standInKeys.includes(k))out.standInKeys.push(k);
+    if(i>0){out.geoConn.push({name:'_l'+i,geo:p.geo});for(const x of p.geoConn||[])out.geoConn.push({name:'_l'+i+x.name,geo:x.geo});}
+  });
+  return out;
+}
 function modelBlockParts(b,ns,tex,nativeKeys,keyOf){
+  return b.looks?lookBlockParts(b,ns,tex,nativeKeys,keyOf):modelBlockPartsOne(b,ns,tex,nativeKeys,keyOf);
+}
+function modelBlockPartsOne(b,ns,tex,nativeKeys,keyOf){
   if(b.stack)return stackBlockParts(b,ns,tex,nativeKeys,keyOf);
   if(b.toggle)return b.toggle.kind==='bed'?bedBlockParts(b,ns,tex,nativeKeys,keyOf):b.toggle.kind==='faces'?faceBlockParts(b,ns,tex,nativeKeys,keyOf):b.toggle.kind==='mount'?mountBlockParts(b,ns,tex,nativeKeys,keyOf):toggleBlockParts(b,ns,tex,nativeKeys,keyOf);
   const lo=modelMaterials(b.need,tex,nativeKeys,keyOf,b.cubes);
@@ -2908,6 +2985,7 @@ function modelBlockParts(b,ns,tex,nativeKeys,keyOf){
   const sup=b.support||(fl&&altMode==='wall'?'floor_side':fl&&altMode==='hanging'?'floor_ceiling':null);
   if(sup&&SUPPORT[sup])bk.components['minecraft:placement_filter']={conditions:JSON.parse(JSON.stringify(SUPPORT[sup]))};
   if(b.light>0)bk.components['minecraft:light_emission']=Math.min(15,Math.round(b.light));
+  else if(!b.noGuess&&!NOT_LIGHT.test(b.id)){const g=lightLevel(b.id,0);if(g>0&&(/(^|_)lit(_|$)/.test(b.id)||/(lantern|lamp|torch|chandelier|brazier|campfire|sconce)/.test(b.id)))bk.components['minecraft:light_emission']=g;}
   const geo=modelGeometryDoc(geoId0,b.cubes,lo.keyMap,mir);
   const out={doc,geo,keys:lo.usedKeys.slice(),standInKeys:lo.standIn.slice()};
   if(fl){out.geoTop=modelGeometryDoc(geoIdTop,b.flip.cubes,fl.keyMap,mir);for(const k of fl.usedKeys)if(!out.keys.includes(k))out.keys.push(k);}
@@ -3367,12 +3445,12 @@ async function buildAddon(entries,o){
   const ex=o.extras?await o.extras({blockMap,plan,namespace:ns,folder,bp,rp,cornerStairs})||{}:{};
   const exBp=ex.bp||[],exRp=ex.rp||[];
   const man=manifests(name,folder,true,true,minEngine,'Built with Texture Shift');
-  const hasToggle=mParts.some(m=>m.p.toggle&&!m.p.mount),hasStack=mParts.some(m=>m.p.stack),hasBed=mParts.some(m=>m.p.bed);
-  if(hasToggle||hasStack||hasBed||ex.script){
-    man.bp.modules.push({description:[hasToggle?'open and close':'',hasStack?'stack layers':'',hasBed?'two-part beds':'',ex.script?'build maps':''].filter(Boolean).join(', ').replace(/^./,c=>c.toUpperCase()),type:'script',language:'javascript',entry:'scripts/main.js',uuid:uuidFor(name+'|bp-script'),version:[1,0,0]});
+  const hasToggle=mParts.some(m=>m.p.toggle&&!m.p.mount),hasStack=mParts.some(m=>m.p.stack),hasBed=mParts.some(m=>m.p.bed),hasLook=mParts.some(m=>m.p.look);
+  if(hasToggle||hasStack||hasBed||hasLook||ex.script){
+    man.bp.modules.push({description:[hasToggle?'open and close':'',hasStack?'stack layers':'',hasBed?'two-part beds':'',hasLook?'change looks':'',ex.script?'build maps':''].filter(Boolean).join(', ').replace(/^./,c=>c.toUpperCase()),type:'script',language:'javascript',entry:'scripts/main.js',uuid:uuidFor(name+'|bp-script'),version:[1,0,0]});
     man.bp.dependencies.push({module_name:'@minecraft/server',version:'2.0.0'});
   }
-  if(hasToggle||hasStack||hasBed||ex.script)files.push({name:bp+'scripts/main.js',data:utf8('import { system, world } from "@minecraft/server";\n\n'+(hasToggle?toggleScript(ns)+'\n':'')+(hasStack?stackScript(ns)+'\n':'')+(hasBed?bedScript(ns)+'\n':'')+(ex.script||''))});
+  if(hasToggle||hasStack||hasBed||hasLook||ex.script)files.push({name:bp+'scripts/main.js',data:utf8('import { system, world } from "@minecraft/server";\n\n'+(hasToggle?toggleScript(ns)+'\n':'')+(hasStack?stackScript(ns)+'\n':'')+(hasBed?bedScript(ns)+'\n':'')+(hasLook?cycleScript(ns)+'\n':'')+(ex.script||''))});
   files.push({name:bp+'manifest.json',data:utf8(JSON.stringify(man.bp,null,2))});
   for(const b of sorted)files.push({name:bp+'blocks/'+b.id+'.json',data:jsonMin(docOf.get(b.id))});
   files.push({name:rp+'manifest.json',data:utf8(JSON.stringify(man.rp,null,2))});
@@ -3453,7 +3531,7 @@ async function buildReplacePack(entries,o){
   files.push({name:rp+'pack_icon.png',data:await iconFor((()=>{const all=plan.matches.map(m=>m.e),sq=all.filter(e=>e.w===e.h);return sq.length?sq:all;})())});
   return{files,plan,minEngine:MIN_ENGINE_BASE,folder,kind:'resourcepack'};
 }
-return{setSheetMax,stackScript,bedScript,packEntry,nativeFiles,FLIPBOOK_TILES,buildBlockMap,resolveJavaState,sectionOf,hugHome,hugPlacement,menuFor,planFolders,catalogFiles,pieceOf,materialOf,selfCheck,checkModelParts,LAYERS,buildAddon,buildReplacePack,stateDefaultsOf,planNew,planReplace,makeZipBytes,encodePng,nativeFile,nativeRenderMethod,renderMethodFor,groupFaces,sanitizeId,sanitizeNs,validNs,titleCase,uuidFor,blockDoc,geometryDoc,connectionCubes,stairCubes,faceUv,crc32,NATIVE_FILES,NATIVE_ALIAS,FV,upscale,HAVE_CS,zlibStored};
+return{setSheetMax,stackScript,bedScript,cycleScript,packEntry,nativeFiles,FLIPBOOK_TILES,buildBlockMap,resolveJavaState,sectionOf,hugHome,hugPlacement,menuFor,planFolders,catalogFiles,pieceOf,materialOf,selfCheck,checkModelParts,LAYERS,buildAddon,buildReplacePack,stateDefaultsOf,planNew,planReplace,makeZipBytes,encodePng,nativeFile,nativeRenderMethod,renderMethodFor,groupFaces,sanitizeId,sanitizeNs,validNs,titleCase,uuidFor,blockDoc,geometryDoc,connectionCubes,stairCubes,faceUv,crc32,NATIVE_FILES,NATIVE_ALIAS,FV,upscale,HAVE_CS,zlibStored};
 })();
 /*EXPORT-END*/
 if(typeof module!=='undefined')module.exports=ExportCore;
@@ -3591,7 +3669,7 @@ function solveFaceUv(c){
   }
   return best;
 }
-function polygonToElements(P,UVs,Ns,tex,out,st){
+function polygonToElements(P,UVs,Ns,tex,out,st,ff){
   /* P: positions in pixels, UVs: [u,v] already in texture space (0..1, top-left origin) or null */
   let n=[0,0,0];
   for(let i=0;i<P.length;i++){const a=P[i],b=P[(i+1)%P.length];n[0]+=(a[1]-b[1])*(a[2]+b[2]);n[1]+=(a[2]-b[2])*(a[0]+b[0]);n[2]+=(a[0]-b[0])*(a[1]+b[1]);}
@@ -3599,20 +3677,34 @@ function polygonToElements(P,UVs,Ns,tex,out,st){
   n=n.map(x=>x/nl);
   if(Ns){const m=[0,0,0];for(const q of Ns)if(q){m[0]+=q[0];m[1]+=q[1];m[2]+=q[2];}if(V3.dot(m,n)<0){n=n.map(x=>-x);}}
   /* stand the plate upright: find the one axis to turn about */
-  let axis=null,phi=0,k,sg;
+  let axis=null,phi=0,k,sg,Rg=null;
   const am=n.map(Math.abs),mx=Math.max(...am);
-  if(mx>=0.9995){k=am.indexOf(mx);sg=Math.sign(n[k]);}
+  if(mx>=0.9995&&!ff){k=am.indexOf(mx);sg=Math.sign(n[k]);}
   else{
     let a=-1,best=1e9;for(let i=0;i<3;i++)if(am[i]<0.02&&am[i]<best){best=am[i];a=i;}
-    if(a<0){st.unsupported++;return;}
-    axis='xyz'[a];const[i1,i2]=AX_PLANE[axis];
-    const al=Math.atan2(n[i2],n[i1])*180/Math.PI,g=Math.round(al/90)*90;
-    phi=al-g;const gr=g*Math.PI/180;
-    const tn=[0,0,0];tn[i1]=Math.round(Math.cos(gr));tn[i2]=Math.round(Math.sin(gr));
-    k=tn.findIndex(x=>x!==0);sg=tn[k];
+    if(a>=0&&!ff){
+      axis='xyz'[a];const[i1,i2]=AX_PLANE[axis];
+      const al=Math.atan2(n[i2],n[i1])*180/Math.PI,g=Math.round(al/90)*90;
+      phi=al-g;const gr=g*Math.PI/180;
+      const tn=[0,0,0];tn[i1]=Math.round(Math.cos(gr));tn[i2]=Math.round(Math.sin(gr));
+      k=tn.findIndex(x=>x!==0);sg=tn[k];
+    }else{
+      /* a face tilted about two or three axes (the slanted shoulder of a bottle): stand it upright with a free three-angle turn.
+         The plate's own sides are lined up with the face's longest edge, so a plain quad stays one plate. */
+      k=am.indexOf(mx);sg=Math.sign(n[k])||1;
+      const dd=[0,1,2].filter(i=>i!==k);
+      let e=[1,0,0],el=0;
+      for(let i=0;i<P.length;i++){const q=V3.sub(P[(i+1)%P.length],P[i]),l=V3.len(q);if(l>el){el=l;e=q;}}
+      const pr=V3.dot(e,n);let t1=[e[0]-pr*n[0],e[1]-pr*n[1],e[2]-pr*n[2]];
+      if(V3.len(t1)<1e-6)t1=V3.cross(n,Math.abs(n[0])<0.9?[1,0,0]:[0,1,0]);
+      const tl=V3.len(t1);t1=t1.map(x=>x/tl);
+      const ck=n.map(x=>x*sg),cross=V3.cross(ck,t1),cyc=((dd[0]-k+3)%3)===1?1:-1;   /* is (k, first other, second other) an even permutation? */
+      const cols=[];cols[k]=ck;cols[dd[0]]=t1;cols[dd[1]]=cross.map(x=>x*cyc);
+      Rg=[0,1,2].map(r=>[0,1,2].map(c=>cols[c][r]));
+    }
   }
   const pivot=P.reduce((s,p)=>[s[0]+p[0]/P.length,s[1]+p[1]/P.length,s[2]+p[2]/P.length],[0,0,0]);
-  const A=axis?P.map(p=>turnPoint(p,axis,-phi,pivot)):P.map(p=>p.slice());
+  const A=Rg?P.map(p=>{const q=V3.sub(p,pivot);return[0,1,2].map(c=>pivot[c]+Rg[0][c]*q[0]+Rg[1][c]*q[1]+Rg[2][c]*q[2]);}):axis?P.map(p=>turnPoint(p,axis,-phi,pivot)):P.map(p=>p.slice());
   const c0=A.reduce((s,p)=>s+p[k],0)/A.length;
   const dims=[0,1,2].filter(i=>i!==k),[ia,ib]=dims;
   const poly=A.map(p=>[p[ia],p[ib]]);
@@ -3641,9 +3733,16 @@ function polygonToElements(P,UVs,Ns,tex,out,st){
     const el={from:lo.slice(),to:hi.slice(),faces:{[d]:{uv:sol.rect.map(x=>Math.min(16,Math.max(0,Math.round(x*16*1000)/1000))),texture:tex}}};
     if(sol.r)el.faces[d].rotation=sol.r;
     if(axis&&Math.abs(phi)>1e-4)el.rotation={axis,angle:Math.round(phi*1000)/1000,origin:pivot.slice()};
+    else if(Rg){const ea=eulerOf(Rg);el.rotation={x:ea[0],y:ea[1],z:ea[2],origin:pivot.slice()};}
     out.push(el);
   };
   if(area>=box*0.999){st.rect++;emit(mn[0],mxp[0],mn[1],mxp[1]);return;}
+  /* a rectangle standing at an angle inside its own plane (a diamond-shaped lid): turn the plate to match, one plate instead of strips */
+  if(!ff&&P.length===4){
+    let right=true;
+    for(let i=0;i<4&&right;i++){const a=V3.sub(P[(i+1)%4],P[i]),b=V3.sub(P[(i+2)%4],P[(i+1)%4]),la=V3.len(a),lb=V3.len(b);if(la<1e-6||lb<1e-6||Math.abs(V3.dot(a,b))/(la*lb)>0.002)right=false;}
+    if(right)return polygonToElements(P,UVs,Ns,tex,out,st,true);
+  }
   /* any other flat shape: strips of about a pixel across the longer side */
   st.cut++;
   const ps=(mxp[0]-mn[0])>=(mxp[1]-mn[1])?0:1,qs=1-ps;
@@ -3663,9 +3762,12 @@ function polygonToElements(P,UVs,Ns,tex,out,st){
   const merged=[];
   for(const s of strips){
     const m=merged[merged.length-1];
-    if(m&&Math.abs(m.qlo-s.qlo)<0.5&&Math.abs(m.qhi-s.qhi)<0.5&&Math.abs(m.p1-s.p0)<1e-6){m.p1=s.p1;m.qlo=Math.min(m.qlo,s.qlo);m.qhi=Math.max(m.qhi,s.qhi);}
+    if(m&&Math.abs(m.qlo-s.qlo)<0.5&&Math.abs(m.qhi-s.qhi)<0.5&&Math.abs(m.p1-s.p0)<1e-6){const w0=m.p1-m.p0,w1=s.p1-s.p0,tw=w0+w1;m.qlo=(m.qlo*w0+s.qlo*w1)/tw;m.qhi=(m.qhi*w0+s.qhi*w1)/tw;m.p1=s.p1;}
     else merged.push(Object.assign({},s));
   }
+  /* measured: how much of the face's area the strips cover, against the face itself (faces under 2 square pixels do not count) */
+  let covered=0;for(const m of merged)covered+=(m.p1-m.p0)*(m.qhi-m.qlo);
+  if(area>=2){st.cutErr=Math.max(st.cutErr||0,Math.abs(covered-area)/area);st.cutArea=(st.cutArea||0)+area;st.cutOff=(st.cutOff||0)+Math.abs(covered-area);}
   for(const m of merged){
     if(ps===0)emit(m.p0,m.p1,m.qlo,m.qhi);else emit(m.qlo,m.qhi,m.p0,m.p1);
   }
@@ -3926,6 +4028,42 @@ function defaultMultipart(multipart){
   const pickAll={};for(const[k,set]of vals)pickAll[k]=pickV(k,set);
   const hit=multipart.filter(p=>p&&(!p.when||condMatches(p.when,pickAll)));
   return hit.length?hit:multipart.slice(0,1);
+}
+/* A multipart blockstate whose parts all depend on properties (a candle lantern: light x candles x facing, plus a chain above for one of them)
+   becomes one variant per combination, so it goes through the same look-state translation as any other block.
+   A part that sits outside the block (a "yoffset" chain) cannot be built inside one block: it is left out and reported. */
+function multipartToVariants(mp){
+  if(!Array.isArray(mp)||mp.length<2||mp.some(p=>!p||typeof p!=='object'))return null;
+  if(mp.some(p=>!p.when))return null;
+  const vals=new Map(),collect=w=>{
+    if(!w||typeof w!=='object')return;
+    if(Array.isArray(w.OR)){w.OR.forEach(collect);return;}
+    if(Array.isArray(w.AND)){w.AND.forEach(collect);return;}
+    for(const[k,v]of Object.entries(w))for(const x of String(v).split('|')){if(!vals.has(k))vals.set(k,new Set());vals.get(k).add(x);}
+  };
+  for(const p of mp)collect(p.when);
+  const keys=[...vals.keys()].sort();
+  if(!keys.length||keys.some(k=>CONN_KEYS.includes(k)))return null;
+  let total=1;for(const k of keys){total*=vals.get(k).size;if(total>512)return null;}
+  const variants={};let extras=0,combos=0;
+  const rec=(i,cur)=>{
+    if(i===keys.length){
+      const hit=mp.filter(p=>condMatches(p.when,cur));
+      if(!hit.length)return;
+      const ap=h=>{const a=Array.isArray(h.apply)?h.apply[0]:h.apply;return a&&a.model?a:null;};
+      const main=hit.find(h=>ap(h)&&!ap(h).yoffset&&!ap(h).yOffset);
+      if(!main)return;
+      for(const h of hit)if(h!==main)extras++;
+      combos++;
+      const a=ap(main);
+      variants[keys.map(k=>k+'='+cur[k]).join(',')]={model:a.model,x:Number(a.x)||0,y:Number(a.y)||0};
+      return;
+    }
+    for(const v of vals.get(keys[i]))rec(i+1,Object.assign({},cur,{[keys[i]]:v}));
+  };
+  rec(0,{});
+  if(combos<2)return null;
+  return{variants,extras};
 }
 /* ---- connections: a multipart blockstate whose parts depend on north/east/south/west becomes the 16 connection shapes ---- */
 const CONN_KEYS=['north','east','south','west'],CONN_BIT={north:1,south:2,east:4,west:8};
@@ -4433,6 +4571,64 @@ function splitByLook(variants){
   return{parts:out,note:notes.length?notes.join('; '):null};
 }
 
+/* ---- look states: one Bedrock block whose state picks the look ----
+   A Java property that changes the model (lit / light / toggle / age...) is the first thing a native Bedrock block state can do:
+   one block, a state with those values, one shape per distinct look chosen by permutations. Values that look the same share one shape
+   (light 1, 2 and 3 of a candle all show the lit candle). Up to two such properties, up to LOOK_MAX shapes in all. Anything beyond that
+   falls back to blocks of their own (splitByLook, at most three). Returns {parts:[[suffix,variants,firstValues,valuesByProp]], all, props, note}. */
+const LOOK_MAX=12;
+function splitByLookGroups(variants){
+  const keys=Object.keys(variants);if(keys.length<2)return null;
+  const rows=keys.map(k=>{const v=Array.isArray(variants[k])?variants[k][0]:variants[k];return{k,p:parseKey(k),sig:v?(v.model||'')+'|'+(v.x||0)+'|'+(v.y||0):''};});
+  if(rows.some(r=>!Object.keys(r.p).length))return null;
+  if(rows.some(r=>r.p.half!==undefined))return null;
+  const names=new Set();for(const r of rows)for(const n of Object.keys(r.p))names.add(n);
+  const cands=[];
+  for(const n of names){
+    if(NEVER_SPLIT.has(n)||!rows.every(r=>r.p[n]!==undefined))continue;
+    const by=new Map();
+    for(const r of rows){const rest=Object.keys(r.p).filter(k=>k!==n).sort().map(k=>k+'='+r.p[k]).join(',');(by.get(rest)||by.set(rest,new Set()).get(rest)).add(r.sig);}
+    let differs=false;for(const m of by.values())if(m.size>1){differs=true;break;}
+    if(!differs)continue;
+    let vals=[...new Set(rows.map(r=>r.p[n]))];
+    if(vals.every(v=>/^-?\d+$/.test(v)))vals.sort((a,b)=>a-b);
+    else if(vals.includes('false'))vals=['false'].concat(vals.filter(v=>v!=='false'));
+    cands.push({n,vals});
+  }
+  if(!cands.length)return null;
+  cands.sort((a,b)=>(a.n==='lit'?-1:b.n==='lit'?1:0)||a.vals.length-b.vals.length);
+  const sel=cands.slice(0,2),notes=[];
+  if(sel.some(c=>c.vals.length>16))return null;
+  for(const c of cands.slice(2))notes.push(c.n+' is not kept as a state (at most two look-changing properties per block)');
+  /* values that give the same model in every combination of the other properties share one shape */
+  for(const c of sel){
+    const vec=v=>{const by=new Map();for(const r of rows){if(r.p[c.n]!==v)continue;const rest=Object.keys(r.p).filter(k=>k!==c.n).sort().map(k=>k+'='+r.p[k]).join(',');by.set(rest,r.sig);}return[...by.entries()].sort((a,b)=>a[0]<b[0]?-1:1).map(e=>e.join('>')).join(';');};
+    const g=new Map();for(const v of c.vals){const k=vec(v);(g.get(k)||g.set(k,[]).get(k)).push(v);}
+    c.groups=[...g.values()];
+  }
+  const total=sel.reduce((a,c)=>a*c.groups.length,1);
+  if(total>LOOK_MAX)return null;
+  const fixedNames=sel.map(c=>c.n);
+  const combos=[[]];
+  for(const c of sel){const nx=[];for(const base of combos)for(let gi=0;gi<c.groups.length;gi++)nx.push(base.concat([[c,gi]]));combos.length=0;combos.push(...nx);}
+  const parts=[];
+  for(const cm of combos){
+    const fix={},valsBy={};
+    for(const[c,gi]of cm){fix[c.n]=c.groups[gi][0];valsBy[c.n]=c.groups[gi].slice();}
+    const vs={};
+    for(const r of rows){
+      if(!fixedNames.every(k=>r.p[k]===fix[k]))continue;
+      const rest=Object.entries(r.p).filter(([n])=>!(n in fix)).map(([n,v])=>n+'='+v).join(',');
+      vs[rest]=variants[r.k];
+    }
+    if(!Object.keys(vs).length)continue;
+    const suf=cm.filter(([c,gi])=>gi>0).map(([c,gi])=>c.n+'_'+c.groups[gi][0]).join('_');
+    parts.push([suf?'_'+suf.replace(/[^a-z0-9_]+/gi,'_').toLowerCase():'',vs,fix,valsBy]);
+  }
+  if(parts.length<2)return null;
+  const all={};for(const c of sel)all[c.n]=c.vals.slice();
+  return{parts,all,props:fixedNames,note:notes.length?notes.join('; '):null};
+}
 /* ---- split by what a world really uses ----
    With a map loaded, a Java state that changes the look and cannot be a native Bedrock state (Conquest's layer, shape, hinge, type, e/s/w...)
    gets a block of its own for every combination the map actually places. Nothing the map does not use is built, and nothing it uses is merged. */
@@ -4926,7 +5122,7 @@ async function scanArchive(archive,opt){
       const r=typeof r0==='string'?r0:r0.model;
       let mr=await resolveModel(idx,r.includes(':')?r:'minecraft:'+r,cache,0);   /* no prefix means the game's own namespace */
       if(mr.missing)return{skip:'model file not found'};
-      if(mr.objStats&&(mr.objStats.cut+mr.objStats.unsupported)>0)meshApprox=true;
+      if(mr.objStats){if(mr.objStats.unsupported>0||(mr.objStats.cutArea>0&&mr.objStats.cutOff/mr.objStats.cutArea>0.08)||(mr.objStats.cutErr||0)>0.35)meshApprox=true;else if(mr.objStats.cut>0)rep.add("mesh_strips");}
       if(typeof r0!=='string'&&r0.x)mr=turnModelX(mr,r0.x);
       if(typeof r0!=='string'&&r0.y)mr=turnModel(mr,r0.y);
       if(mr.code)return{skip:'drawn by game code (not a normal model)'};
@@ -5010,6 +5206,7 @@ async function scanArchive(archive,opt){
     for(const k of[...need.keys()])if(!ks.has(k))need.delete(k);
     rep.add('too_many_textures');
   }
+  const lostExtra=new Map();
   let n=0;
   for(let qi=0;qi<states.length;qi++){
     const st=states[qi];
@@ -5017,6 +5214,10 @@ async function scanArchive(archive,opt){
     if(opt.onProgress&&++n%200===0){opt.onProgress({done:n,total:states.length});await new Promise(r=>setTimeout(r,0));}
     curName=st.ns+':'+st.name;
     let bs=st.bs||await readJson(idx,st.path,cache);
+    if(!st.bs&&bs&&Array.isArray(bs.multipart)&&!connectionMasks(bs.multipart)){
+      const mv=multipartToVariants(bs.multipart);
+      if(mv){bs={variants:mv.variants};if(mv.extras)lostExtra.set(st.path,mv.extras);}
+    }
     /* a layers family stays whole (every thickness is a state of one block), so the world's own use does not cut it down */
     let stk=null;
     if(!st.bs&&bs&&bs.variants&&typeof bs.variants==='object'){
@@ -5032,6 +5233,8 @@ async function scanArchive(archive,opt){
         const su=wu?splitByUse(bs.variants,wu):null;
         if(su&&su.parts.length){for(const[suf,vs,w]of su.parts)states.push({ns:st.ns,name:st.name+suf,path:st.path,bs:{variants:vs},split:true,note:su.note,jname:st.jname||st.ns+':'+st.name,when:Object.assign({},st.when,w)});continue;}
       }
+      const lg=WORLD_USE&&wu?null:splitByLookGroups(bs.variants);
+      if(lg){const lkey=st.ns+':'+st.name+'|'+(st.when?JSON.stringify(st.when):'');lg.parts.forEach(([suf,vs,w,vb],i)=>states.push({ns:st.ns,name:st.name+suf,path:st.path,bs:{variants:vs},split:true,note:lg.note,jname:st.jname||st.ns+':'+st.name,when:Object.assign({},st.when),look:{key:lkey,idx:i,vals:vb,first:w,all:lg.all,props:lg.props}}));continue;}
       const sp=WORLD_USE&&wu?null:splitByProperty(bs.variants);
       if(sp){for(const[val,vs,w]of sp)states.push({ns:st.ns,name:st.name+'_'+val,path:st.path,bs:{variants:vs},split:true,jname:st.jname||st.ns+':'+st.name,when:Object.assign({},st.when,w)});continue;}
       const sl=WORLD_USE&&wu?null:splitByLook(bs.variants);
@@ -5203,6 +5406,7 @@ async function scanArchive(archive,opt){
       const lost=lostStates(bs,handled);
       if(lost.length){fit.verdict='inspect';fit.reasons.push('Java states that change its look are not kept ('+lost.slice(0,5).join(', ')+'): the first state is used');fit.codes.push('states_dropped');}
     }
+    if(lostExtra.has(st.path)){fit.verdict='inspect';fit.reasons.push('a part that sits outside the block (like a chain hanging above it) cannot be built inside one block and was left out');fit.codes.push('part_outside_block');}
     if(main.multi&&(upper||flip)){fit.verdict='inspect';fit.reasons.push('it is bigger than one block and also has a second version, so only the first part was kept');fit.codes.push('trimmed');}
     let alt=null;
     if(main.alt&&!upper&&!flip&&union.size<=MAX_INSTANCES-1){
@@ -5219,11 +5423,58 @@ async function scanArchive(archive,opt){
       toggle:togo?{kind:togo.kind,face:togo.face,shapes:togo.shapes.map(e=>({key:e.key,cubes:e.u.cubes,boxes:boxesFor(e.u.cubes)}))}:null,
       conn:conn?{masks:conn.shapes.map(u=>({cubes:u.cubes,boxes:boxesFor(u.cubes)}))}:null,
       fit,alt,jmap:(()=>{const m=javaMap({dir,axis,conn,togo,upper,flip,flipMode,vlist,stack}),seen=new Set([...Object.keys(m.props),...(m.connect?['north','south','east','west']:[]),...m.combos.flatMap(c=>Object.keys(c.when)),...Object.keys(st.when||{})]);return{java:st.jname||st.ns+':'+st.name,when:st.when||{},props:m.props,combos:m.combos,connect:m.connect,ignored:[...javaPropNames(bs)].filter(p=>!seen.has(p))};})(),
-      flip:flip?{cubes:flip.cubes,boxes:boxesFor(flip.cubes),mode:flipMode}:null,support:flip&&flipMode==='hanging'?'floor_ceiling':null,light:0});
+      flip:flip?{cubes:flip.cubes,boxes:boxesFor(flip.cubes),mode:flipMode}:null,support:flip&&flipMode==='hanging'?'floor_ceiling':null,light:0,look:st.look||null});
   }
-  return{blocks,stats,archive:{idx},hasTex};
+  return{blocks:mergeLookBlocks(blocks),stats,archive:{idx},hasTex};
 }
 
+/* ---- the shapes of one look-changing Java block become ONE block with state(s) ---- */
+const stateSafe=n=>String(n).toLowerCase().replace(/[^a-z0-9_]+/g,'_').replace(/^_+|_+$/g,'')||'look';
+function lookType(vals){
+  if(vals.every(v=>v==='true'||v==='false'))return'bool';
+  if(vals.every(v=>/^-?\d+$/.test(v)))return'int';
+  return'str';
+}
+function lookTyped(type,v){return type==='bool'?v==='true':type==='int'?Number(v):String(v);}
+function mergeLookBlocks(blocks){
+  const groups=new Map();
+  for(const b of blocks)if(b.look){(groups.get(b.look.key)||groups.set(b.look.key,[]).get(b.look.key)).push(b);}
+  if(!groups.size)return blocks;
+  const drop=new Set();
+  const kindSig=m=>JSON.stringify([!!m.upper,!!m.flip,!!m.multi,!!m.conn,!!m.stack,!!m.alt,m.toggle?m.toggle.kind:null,!!m.dir,!!(m.dir&&m.dir.six),!!m.axis]);
+  const plainKind=m=>!m.upper&&!m.flip&&!m.multi&&!m.conn&&!m.stack&&!m.alt&&(!m.toggle||m.toggle.kind==='faces'||m.toggle.kind==='mount');
+  for(const ms of groups.values()){
+    ms.sort((a,c)=>a.look.idx-c.look.idx);
+    const main=ms[0],L=main.look;
+    const ok=ms.length>1&&ms.every(m=>plainKind(m)&&kindSig(m)===kindSig(main));
+    if(!ok){
+      /* these shapes cannot share one block: blocks of their own, at most three */
+      ms.forEach((m,i)=>{
+        m.jmap.when=Object.assign({},m.jmap.when,m.look.first);
+        if(i>=3){drop.add(m);return;}
+      });
+      if(ms.length>3){
+        main.fit=Object.assign({},main.fit,{verdict:'inspect',reasons:main.fit.reasons.concat(['it has '+ms.length+' different looks that cannot share one block, so only the first three are built']),codes:main.fit.codes.concat(['states_dropped'])});
+      }
+      ms.forEach(m=>{m.look=null;});
+      continue;
+    }
+    const members=ms.map(m=>({vals:m.look.vals,block:Object.assign({},m,{look:null})}));
+    const repairs=[...new Set(ms.flatMap(m=>m.repairs))];
+    const need=new Map();for(const m of ms)for(const[k,v]of m.need)if(!need.has(k))need.set(k,v);
+    const props=L.props.map(n=>{const raw=L.all[n],type=lookType(raw);return{name:n,state:stateSafe(n),type,raw,values:raw.map(v=>lookTyped(type,v))};});
+    main.need=need;main.repairs=repairs;main.status=statusOf(repairs);
+    main.fit=mergeFit(ms.map(m=>m.fit),repairs)||main.fit;
+    main.looks={props,members};
+    for(const pr of props){
+      for(let i=0;i<pr.raw.length;i++){const t=main.jmap.props[pr.name]||(main.jmap.props[pr.name]={});t[pr.raw[i]]={['{ns}:'+pr.state]:pr.values[i]};}
+    }
+    main.jmap.ignored=main.jmap.ignored.filter(x=>!L.props.includes(x));
+    main.look=null;
+    for(const m of ms.slice(1))drop.add(m);
+  }
+  return blocks.filter(b=>!drop.has(b));
+}
 /* ---- pixels for the textures the blocks use. decode(bytes)->{w,h,data} ---- */
 function flipPixels(rgba,w,h,fx,fy){
   const out=new Uint8Array(rgba.length);
@@ -5264,7 +5515,7 @@ async function loadTextures(scan,blocks,decode,nativeFile){
   }
   return{textures:out,native,missing:miss,tint};
 }
-return{bedSpec,faceSpec,stackSpec,fitToWorld,setWorldUse,splitByUse,splitByLook,lostStates,turnModelX,mountSpec,toggleSpec,axisInfo,turnModel,connectionMasks,measureFit,javaExtents,mergeFit,SAFE_SCALE,planSplit,sliceCube,detectGameShapes,openSides,closeSides,familyOf,groupFamilies,flipPixels,statusOf,directionInfo,scanArchive,loadTextures,resolveModel,defaultUv,rotatePixels,VANILLA,fitCubes,boxesFor,texKey,sid,tintFor,extents,MAX_INSTANCES,MATS_SAFE};
+return{parseObjText,objToModel,bedSpec,faceSpec,stackSpec,fitToWorld,setWorldUse,splitByUse,splitByLook,splitByLookGroups,mergeLookBlocks,lostStates,turnModelX,mountSpec,toggleSpec,axisInfo,turnModel,connectionMasks,measureFit,javaExtents,mergeFit,SAFE_SCALE,planSplit,sliceCube,detectGameShapes,openSides,closeSides,familyOf,groupFamilies,flipPixels,statusOf,directionInfo,scanArchive,loadTextures,resolveModel,defaultUv,rotatePixels,VANILLA,fitCubes,boxesFor,texKey,sid,tintFor,extents,MAX_INSTANCES,MATS_SAFE};
 })();
 /* Java world reader: region (.mca) -> chunk NBT -> block palette and counts. Pure functions; the caller supplies inflate. */
 const WorldCore=(()=>{
@@ -7651,7 +7902,9 @@ const CAT_ORDER=ImportCore.CATEGORIES.filter(c=>c!=='Other'&&c!=='Animated').con
 function blkList(){
   const list=$('#blkList');list.textContent='';
   const vis=blkVisible(),fams=ModelCore.groupFamilies(vis),frag=document.createDocumentFragment();
-  const noteFor=w=>blk.tab==='look'&&w.kind==='shape'?whyText(w.b):(w.kind==='tex'?w.it.w+'×'+w.it.h+' texture':'');
+  const looksNote=b=>{const L=b&&b.looks;if(!L||!L.props||!L.props.length)return'';const p=L.props,nm=x=>String(x.name).replace(/_/g,' ');
+    return L.members.length+' looks (one block, '+p.map(nm).join(' + ')+'): right-click with an empty hand to change '+nm(p[0])+(p[1]?', sneak and right-click to change '+nm(p[1]):'')+'.';};
+  const noteFor=w=>blk.tab==='look'&&w.kind==='shape'?[whyText(w.b),looksNote(w.b)].filter(Boolean).join(' '):(w.kind==='tex'?w.it.w+'×'+w.it.h+' texture':(w.kind==='shape'?looksNote(w.b):''));
   const secs=new Map();
   const isAnim=g=>g.members.every(w=>w.kind==='tex'&&w.it.animated);
   for(const g of fams){const c=isAnim(g)?'Animated':blkCat(g.key);if(!secs.has(c))secs.set(c,[]);secs.get(c).push(g);}
