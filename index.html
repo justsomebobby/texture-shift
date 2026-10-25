@@ -2379,6 +2379,82 @@ function mirrorBlockFaces(b,tex,mir0){
   for(const[k,v]of needAdd)nb.need.set(k,v);
   return nb;
 }
+/* ---------- many textures on one block -> a few texture sheets ----------
+   A block that uses a lot of different textures (every mirrored or turned copy counts) may not load (a game test of an older build: 9 failed, 6-7 loaded; the cause is not confirmed).
+   So a block with more than SHEET_MAX textures gets its textures laid side by side on a sheet; the faces read their own tile of it.
+   Sheets are power-of-two in both directions, every tile is the same size, and nothing about a face's picture changes. */
+/* OFF by default (Infinity): the 9-textures-fail evidence came from a build that ignored three-axis turns, so it is unproven. setSheetMax(7) turns the packing and the limit on. */
+let SHEET_MAX=Infinity;const setSheetMax=v=>{SHEET_MAX=v;};
+const pow2up=n=>{let v=1;while(v<n)v*=2;return v;};
+function blockCubeLists(b){
+  const L=[b.cubes];
+  if(b.upper)L.push(b.upper.cubes);if(b.flip)L.push(b.flip.cubes);
+  if(b.multi){for(const p of b.multi.parts)L.push(p.cubes);if(b.multi.single)L.push(b.multi.single.cubes);}
+  if(b.conn)for(const m of b.conn.masks)L.push(m.cubes);
+  if(b.toggle)for(const e of b.toggle.shapes)L.push(e.cubes);
+  if(b.stack)for(const e of b.stack.shapes)L.push(e.cubes);
+  return L;
+}
+function packBlockTextures(b,tex){
+  const lists=blockCubeLists(b),keys=new Set();
+  for(const l of lists)for(const c of l)for(const f of Object.values(c.uv))keys.add(f.material_instance);
+  const packable=[...keys].filter(k=>tex.has(k)).sort(),others=keys.size-packable.length;
+  if(keys.size<=SHEET_MAX||!packable.length)return b;
+  const plane=new Map();
+  for(const l of lists){
+    const ok=pairedPlaneKeys(l),used=new Set();
+    for(const c of l)for(const f of Object.values(c.uv))used.add(f.material_instance);
+    for(const k of used){const v=ok.has(k);plane.set(k,plane.has(k)?plane.get(k)&&v:v);}
+  }
+  const groups=new Map();
+  for(const k of packable){
+    const rm=renderMethodFor(tex.get(k).rgba),nd=b.need.get(k)||{},g=rm+'|'+(nd.tint||'')+'|'+(rm==='alpha_test'&&plane.get(k)?1:0);
+    (groups.get(g)||groups.set(g,[]).get(g)).push(k);
+  }
+  const N=Math.max(...[...groups.values()].map(a=>a.length));
+  let cols=1,rows=1;while(cols*rows<N){if(cols<=rows)cols*=2;else rows*=2;}
+  const S=pow2up(Math.max(...packable.map(k=>Math.max(tex.get(k).w,tex.get(k).h))));
+  if(cols*S>2048||rows*S>2048||groups.size+others>SHEET_MAX)return b;
+  const map=new Map();
+  for(const[g,ks]of groups){
+    const W=cols*S,H=rows*S,rgba=new Uint8Array(W*H*4);
+    for(let i=0;i<cols*rows;i++){
+      const k=ks[i%ks.length],t=tex.get(k),cx=(i%cols)*S,cy=Math.floor(i/cols)*S;   /* spare tiles repeat a real one, so the sheet reads the same as its tiles */
+      for(let y=0;y<S;y++)for(let x=0;x<S;x++){
+        const sx=Math.min(t.w-1,Math.floor(x*t.w/S)),sy=Math.min(t.h-1,Math.floor(y*t.h/S)),si=(sy*t.w+sx)*4,di=((cy+y)*W+cx+x)*4;
+        rgba[di]=t.rgba[si];rgba[di+1]=t.rgba[si+1];rgba[di+2]=t.rgba[si+2];rgba[di+3]=t.rgba[si+3];
+      }
+      if(i<ks.length)map.set(k,{key:null,g,col:i%cols,row:Math.floor(i/cols)});
+    }
+    let h=2166136261;for(const ch of g+'|'+ks.join('|')+'|'+cols+'x'+rows){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)>>>0;}
+    const key='sheet_'+h.toString(16)+'_'+g.replace(/[^a-z0-9]/g,'').slice(0,12),first=tex.get(ks[0]);
+    tex.set(key,Object.assign({},first,{w:W,h:H,rgba}));
+    for(const k of ks)map.get(k).key=key;
+  }
+  const done=new Map();
+  const cubeOut=c=>{
+    if(done.has(c))return done.get(c);
+    const uv={};
+    for(const[d,f]of Object.entries(c.uv)){
+      const m=map.get(f.material_instance);
+      if(m)uv[d]=Object.assign({},f,{material_instance:m.key,uv:[Math.round((f.uv[0]+m.col*16)*10000)/10000,Math.round((f.uv[1]+m.row*16)*10000)/10000]});
+      else uv[d]=Object.assign({},f,{uv:[Math.round(f.uv[0]*cols*10000)/10000,Math.round(f.uv[1]*rows*10000)/10000],uv_size:[Math.round(f.uv_size[0]*cols*10000)/10000,Math.round(f.uv_size[1]*rows*10000)/10000]});
+    }
+    const n=Object.assign({},c,{uv,tw:[16*cols,16*rows]});done.set(c,n);return n;
+  };
+  const list=l=>l.map(cubeOut);
+  const nb=Object.assign({},b,{cubes:list(b.cubes),__packed:{cols,rows,tile:S,sheets:groups.size}});
+  if(b.upper)nb.upper=Object.assign({},b.upper,{cubes:list(b.upper.cubes)});
+  if(b.flip)nb.flip=Object.assign({},b.flip,{cubes:list(b.flip.cubes)});
+  if(b.multi)nb.multi=Object.assign({},b.multi,{parts:b.multi.parts.map(p=>Object.assign({},p,{cubes:list(p.cubes)})),single:b.multi.single?Object.assign({},b.multi.single,{cubes:list(b.multi.single.cubes)}):b.multi.single});
+  if(b.conn)nb.conn={masks:b.conn.masks.map(m=>Object.assign({},m,{cubes:list(m.cubes)}))};
+  if(b.toggle)nb.toggle=Object.assign({},b.toggle,{shapes:b.toggle.shapes.map(e=>Object.assign({},e,{cubes:list(e.cubes)}))});
+  if(b.stack)nb.stack=Object.assign({},b.stack,{shapes:b.stack.shapes.map(e=>Object.assign({},e,{cubes:list(e.cubes)}))});
+  nb.need=new Map(b.need);
+  for(const k of packable)nb.need.delete(k);
+  for(const[k,m]of map)if(!nb.need.has(m.key)){const nd=b.need.get(k)||{};nb.need.set(m.key,{ref:m.key,rot:0,fx:false,fy:false,tint:nd.tint||null});}
+  return nb;
+}
 /* hit boxes live in the same flipped frame as the geometry (the east arm of a fence is at negative x) */
 function mbox(bx,mir){
   if(!mir||!bx)return bx;
@@ -2394,7 +2470,8 @@ function modelGeometryDoc(id,cubes,keyMap,mir){
     /* Remove ONLY byte-for-byte equivalent geometry and UVs. Different art or faces are retained. */
     const k=JSON.stringify(o);if(seen.has(k))continue;seen.add(k);written.push(o);
   }
-  return{format_version:'1.21.0','minecraft:geometry':[{description:{identifier:id,texture_width:16,texture_height:16},bones:[{name:'root',pivot:[0,0,0],cubes:written}]}]};
+  const tw=(cubes.find(c=>c.tw)||{}).tw||[16,16];
+  return{format_version:'1.21.0','minecraft:geometry':[{description:{identifier:id,texture_width:tw[0],texture_height:tw[1]},bones:[{name:'root',pivot:[0,0,0],cubes:written}]}]};
 }
 /* Cutout X-panels with both normal directions already have a front and a back.
    Using double-sided alpha test would draw each face twice at exactly the same depth. */
@@ -2616,6 +2693,85 @@ function mountBlockParts(b,ns,tex,nativeKeys,keyOf){
   mats.forEach((m,i)=>{for(const k of m.usedKeys)if(!out.keys.includes(k))out.keys.push(k);if(i>0)out.geoConn.push({name:'_'+sh[i].key,geo:modelGeometryDoc(gid(i),sh[i].cubes,m.keyMap,mir)});});
   return out;
 }
+const bedScript=ns=>`system.beforeEvents.startup.subscribe((initEvent) => {
+  const STEP = { north: [0, 0, -1], south: [0, 0, 1], east: [1, 0, 0], west: [-1, 0, 0] };
+  initEvent.blockComponentRegistry.registerCustomComponent("${ns}:bed_part", {
+    onPlayerPlace(event, parameterData) {
+      const cfg = parameterData?.params ?? {};
+      const block = event.block;
+      if (!cfg.state || !block || block.permutation.getState(cfg.state)) return;
+      const step = STEP[block.permutation.getState("minecraft:cardinal_direction")];
+      if (!step) return;
+      const dim = event.dimension ?? block.dimension;
+      const player = event.player;
+      system.run(() => {
+        try {
+          const l = block.location;
+          const other = dim.getBlock({ x: l.x + step[0], y: l.y, z: l.z + step[2] });
+          if (other && other.isAir) {
+            other.setPermutation(block.permutation.withState(cfg.state, true));
+            return;
+          }
+          const stack = block.getItemStack?.(1);
+          block.setType("minecraft:air");
+          if (stack && String(player?.getGameMode?.() ?? "").toLowerCase() !== "creative") dim.spawnItem(stack, block.center());
+        } catch (e) {}
+      });
+    },
+    onPlayerBreak(event, parameterData) {
+      const cfg = parameterData?.params ?? {};
+      const perm = event.brokenBlockPermutation;
+      if (!cfg.state || !perm) return;
+      const step = STEP[perm.getState("minecraft:cardinal_direction")];
+      if (!step) return;
+      const isHead = !!perm.getState(cfg.state);
+      const sign = isHead ? -1 : 1;
+      const dim = event.dimension ?? event.block.dimension;
+      const l = event.block.location;
+      system.run(() => {
+        try {
+          const other = dim.getBlock({ x: l.x + sign * step[0], y: l.y, z: l.z + sign * step[2] });
+          if (other && other.typeId === perm.type.id && !!other.permutation.getState(cfg.state) !== isHead) other.setType("minecraft:air");
+        } catch (e) {}
+      });
+    }
+  });
+});
+`;
+function bedBlockParts(b,ns,tex,nativeKeys,keyOf){
+  const T=b.toggle,sh=T.shapes,mir=b.mirrorX!==undefined?!!b.mirrorX:MIRROR_X_DEFAULT;
+  const mats=sh.map(e=>{const nd=new Map();for(const c of e.cubes)for(const f of Object.values(c.uv))if(b.need.has(f.material_instance))nd.set(f.material_instance,b.need.get(f.material_instance));return modelMaterials(nd,tex,nativeKeys,keyOf,e.cubes);});
+  if(mats.some(x=>!x))return null;
+  const gid=i=>i===0?geoId(ns,b.id):geoId(ns,b.id+'_'+sh[i].key);
+  const state=ns+':bed_head',cid=ns+':bed_part';
+  const comp=i=>({'minecraft:geometry':gid(i),'minecraft:material_instances':mats[i].mi,'minecraft:collision_box':mbox(sh[i].boxes.collision,mir)||false,'minecraft:selection_box':mbox(sh[i].boxes.selection,mir)||{origin:[-8,0,-8],size:[16,9,16]}});
+  const anyArr=sh.some(e=>Array.isArray(e.boxes.collision));
+  /* the state is the way the player faces when placing: the head goes that way, like the Java facing of a bed (no 180 turn here) */
+  const doc={format_version:anyArr?'1.26.0':FV.dirModel,'minecraft:block':{description:{identifier:ns+':'+b.id,menu_category:menuFor(b,ns),states:{[state]:[false,true]},traits:{'minecraft:placement_direction':{enabled_states:['minecraft:cardinal_direction']}}},components:comp(0)}};
+  const bk=doc['minecraft:block'],perms=[];
+  bk.components[cid]={state};
+  perms.push({condition:cond(state,true),components:comp(1)});
+  if(b.dir)for(const[d,r]of Object.entries(b.dir.rot))if(r.some(x=>x))perms.push({condition:cond('minecraft:cardinal_direction',d),components:{'minecraft:transformation':{rotation:r}}});
+  bk.permutations=perms;
+  const out={doc,geo:modelGeometryDoc(gid(0),sh[0].cubes,mats[0].keyMap,mir),keys:[],toggle:true,bed:true,mount:true,geoConn:[]};
+  mats.forEach((m,i)=>{for(const k of m.usedKeys)if(!out.keys.includes(k))out.keys.push(k);if(i>0)out.geoConn.push({name:'_'+sh[i].key,geo:modelGeometryDoc(gid(i),sh[i].cubes,m.keyMap,mir)});});
+  return out;
+}
+/* candles, lanterns, sconces: the shape for the clicked face (top = floor, bottom = ceiling, a side = wall, facing away from the neighbour) */
+function faceBlockParts(b,ns,tex,nativeKeys,keyOf){
+  const T=b.toggle,sh=T.shapes,mir=b.mirrorX!==undefined?!!b.mirrorX:MIRROR_X_DEFAULT;
+  const mats=sh.map(e=>{const nd=new Map();for(const c of e.cubes)for(const f of Object.values(c.uv))if(b.need.has(f.material_instance))nd.set(f.material_instance,b.need.get(f.material_instance));return modelMaterials(nd,tex,nativeKeys,keyOf,e.cubes);});
+  if(mats.some(x=>!x))return null;
+  const gid=i=>i===0?geoId(ns,b.id):geoId(ns,b.id+'_'+sh[i].key);
+  const comp=i=>({'minecraft:geometry':gid(i),'minecraft:material_instances':mats[i].mi,'minecraft:collision_box':mbox(sh[i].boxes.collision,mir)||false,'minecraft:selection_box':mbox(sh[i].boxes.selection,mir)});
+  const doc={format_version:'1.26.0','minecraft:block':{description:{identifier:ns+':'+b.id,menu_category:menuFor(b,ns),traits:{'minecraft:placement_position':{enabled_states:['minecraft:block_face']}}},components:comp(0)}};
+  const perms=[];
+  sh.forEach((e,i)=>perms.push({condition:cond('minecraft:block_face',e.key),components:comp(i)}));
+  doc['minecraft:block'].permutations=perms;
+  const out={doc,geo:modelGeometryDoc(gid(0),sh[0].cubes,mats[0].keyMap,mir),keys:[],toggle:true,mount:true,geoConn:[]};
+  mats.forEach((m,i)=>{for(const k of m.usedKeys)if(!out.keys.includes(k))out.keys.push(k);if(i>0)out.geoConn.push({name:'_'+sh[i].key,geo:modelGeometryDoc(gid(i),sh[i].cubes,m.keyMap,mir)});});
+  return out;
+}
 function toggleBlockParts(b,ns,tex,nativeKeys,keyOf){
   const T=b.toggle,sh=T.shapes,mir=b.mirrorX!==undefined?!!b.mirrorX:MIRROR_X_DEFAULT;
   const mats=sh.map(e=>{const nd=new Map();for(const c of e.cubes)for(const f of Object.values(c.uv))if(b.need.has(f.material_instance))nd.set(f.material_instance,b.need.get(f.material_instance));return modelMaterials(nd,tex,nativeKeys,keyOf,e.cubes);});
@@ -2655,7 +2811,7 @@ function toggleBlockParts(b,ns,tex,nativeKeys,keyOf){
 }
 function modelBlockParts(b,ns,tex,nativeKeys,keyOf){
   if(b.stack)return stackBlockParts(b,ns,tex,nativeKeys,keyOf);
-  if(b.toggle)return b.toggle.kind==='mount'?mountBlockParts(b,ns,tex,nativeKeys,keyOf):toggleBlockParts(b,ns,tex,nativeKeys,keyOf);
+  if(b.toggle)return b.toggle.kind==='bed'?bedBlockParts(b,ns,tex,nativeKeys,keyOf):b.toggle.kind==='faces'?faceBlockParts(b,ns,tex,nativeKeys,keyOf):b.toggle.kind==='mount'?mountBlockParts(b,ns,tex,nativeKeys,keyOf):toggleBlockParts(b,ns,tex,nativeKeys,keyOf);
   const lo=modelMaterials(b.need,tex,nativeKeys,keyOf,b.cubes);
   if(!lo)return null;
   let up=null;
@@ -2833,6 +2989,8 @@ function checkModelParts(p){
   const block=p.doc['minecraft:block'],comps=block.components;
   const checkGeo=(geo,mi)=>{
     const g=geo['minecraft:geometry'];if(!g||g.length!==1)bad('geometry file is empty');
+    const TW=g[0].description.texture_width,TH=g[0].description.texture_height;
+    if(!(TW>=16&&TH>=16)||(TW&(TW-1))||(TH&(TH-1)))bad('the texture size of the shape is not a power of two');
     const bones=g[0].bones;let n=0,allLo=[Infinity,Infinity,Infinity],allHi=[-Infinity,-Infinity,-Infinity];
     for(const bn of bones)for(const c of bn.cubes){
       n++;
@@ -2848,7 +3006,7 @@ function checkModelParts(p){
         const u=c.uv[f];
         if(!fin(u.uv)||!fin(u.uv_size))bad('a face has bad texture numbers');
         if(u.uv_size[0]<0||u.uv_size[1]<0)bad('a face has a negative texture size');
-        if(u.uv[0]<-0.01||u.uv[1]<-0.01||u.uv[0]+u.uv_size[0]>16.01||u.uv[1]+u.uv_size[1]>16.01)bad('a face reads outside its texture');
+        if(u.uv[0]<-0.01||u.uv[1]<-0.01||u.uv[0]+u.uv_size[0]>TW+0.01||u.uv[1]+u.uv_size[1]>TH+0.01)bad('a face reads outside its texture');
         if(!u.material_instance||!mi[u.material_instance])bad('a face points at a texture the block does not have');
       }
     }
@@ -2859,6 +3017,7 @@ function checkModelParts(p){
     const ks=Object.keys(mi);
     if(!mi['*'])bad('no default texture');
     if(ks.length>64)bad('more than 64 textures on one block');
+    if(ks.filter(k=>k!=='*').length>SHEET_MAX)bad('it would use '+(ks.length-1)+' different textures on one block (7 is the most known to load in game)');
     for(const k of ks)if(!mi[k].texture||!mi[k].render_method)bad('a texture entry is incomplete');
   };
   const checkBox=(bx,maxH,what)=>{
@@ -3155,7 +3314,7 @@ async function buildAddon(entries,o){
   const bump=fv=>{const v=fv.split('.').map(Number);for(let i=0;i<3;i++){if(v[i]>minEngine[i]){minEngine=v;break;}if(v[i]<minEngine[i])break;}};
   for(const b of plan.blocks)bump(fvOf(b));
   const mTex=mdl?new Map(mdl.textures):new Map(),mNative=mdl?mdl.native:new Map();
-  if(mdl)mdl={...mdl,blocks:mdl.blocks.map(b=>{try{const nb=mirrorBlockFaces(b,mTex,MIRROR_X_DEFAULT);return nb;}catch(e){return b;}})};
+  if(mdl)mdl={...mdl,blocks:mdl.blocks.map(b=>{let nb=b;try{nb=mirrorBlockFaces(b,mTex,MIRROR_X_DEFAULT);}catch(e){nb=b;}if(!o.noSheets){try{nb=packBlockTextures(nb,mTex);}catch(e){}}return nb;})};
   const allTex=new Map(plan.textures);for(const[k,v]of mTex)allTex.set(k,v);
   const{files:pngFiles,keyOf}=await uniquePngs(allTex);
   /* every block points at the stored copy of its texture */
@@ -3208,12 +3367,12 @@ async function buildAddon(entries,o){
   const ex=o.extras?await o.extras({blockMap,plan,namespace:ns,folder,bp,rp,cornerStairs})||{}:{};
   const exBp=ex.bp||[],exRp=ex.rp||[];
   const man=manifests(name,folder,true,true,minEngine,'Built with Texture Shift');
-  const hasToggle=mParts.some(m=>m.p.toggle&&!m.p.mount),hasStack=mParts.some(m=>m.p.stack);
-  if(hasToggle||hasStack||ex.script){
-    man.bp.modules.push({description:[hasToggle?'open and close':'',hasStack?'stack layers':'',ex.script?'build maps':''].filter(Boolean).join(', ').replace(/^./,c=>c.toUpperCase()),type:'script',language:'javascript',entry:'scripts/main.js',uuid:uuidFor(name+'|bp-script'),version:[1,0,0]});
+  const hasToggle=mParts.some(m=>m.p.toggle&&!m.p.mount),hasStack=mParts.some(m=>m.p.stack),hasBed=mParts.some(m=>m.p.bed);
+  if(hasToggle||hasStack||hasBed||ex.script){
+    man.bp.modules.push({description:[hasToggle?'open and close':'',hasStack?'stack layers':'',hasBed?'two-part beds':'',ex.script?'build maps':''].filter(Boolean).join(', ').replace(/^./,c=>c.toUpperCase()),type:'script',language:'javascript',entry:'scripts/main.js',uuid:uuidFor(name+'|bp-script'),version:[1,0,0]});
     man.bp.dependencies.push({module_name:'@minecraft/server',version:'2.0.0'});
   }
-  if(hasToggle||hasStack||ex.script)files.push({name:bp+'scripts/main.js',data:utf8('import { system, world } from "@minecraft/server";\n\n'+(hasToggle?toggleScript(ns)+'\n':'')+(hasStack?stackScript(ns)+'\n':'')+(ex.script||''))});
+  if(hasToggle||hasStack||hasBed||ex.script)files.push({name:bp+'scripts/main.js',data:utf8('import { system, world } from "@minecraft/server";\n\n'+(hasToggle?toggleScript(ns)+'\n':'')+(hasStack?stackScript(ns)+'\n':'')+(hasBed?bedScript(ns)+'\n':'')+(ex.script||''))});
   files.push({name:bp+'manifest.json',data:utf8(JSON.stringify(man.bp,null,2))});
   for(const b of sorted)files.push({name:bp+'blocks/'+b.id+'.json',data:jsonMin(docOf.get(b.id))});
   files.push({name:rp+'manifest.json',data:utf8(JSON.stringify(man.rp,null,2))});
@@ -3294,7 +3453,7 @@ async function buildReplacePack(entries,o){
   files.push({name:rp+'pack_icon.png',data:await iconFor((()=>{const all=plan.matches.map(m=>m.e),sq=all.filter(e=>e.w===e.h);return sq.length?sq:all;})())});
   return{files,plan,minEngine:MIN_ENGINE_BASE,folder,kind:'resourcepack'};
 }
-return{stackScript,packEntry,nativeFiles,FLIPBOOK_TILES,buildBlockMap,resolveJavaState,sectionOf,hugHome,hugPlacement,menuFor,planFolders,catalogFiles,pieceOf,materialOf,selfCheck,checkModelParts,LAYERS,buildAddon,buildReplacePack,stateDefaultsOf,planNew,planReplace,makeZipBytes,encodePng,nativeFile,nativeRenderMethod,renderMethodFor,groupFaces,sanitizeId,sanitizeNs,validNs,titleCase,uuidFor,blockDoc,geometryDoc,connectionCubes,stairCubes,faceUv,crc32,NATIVE_FILES,NATIVE_ALIAS,FV,upscale,HAVE_CS,zlibStored};
+return{setSheetMax,stackScript,bedScript,packEntry,nativeFiles,FLIPBOOK_TILES,buildBlockMap,resolveJavaState,sectionOf,hugHome,hugPlacement,menuFor,planFolders,catalogFiles,pieceOf,materialOf,selfCheck,checkModelParts,LAYERS,buildAddon,buildReplacePack,stateDefaultsOf,planNew,planReplace,makeZipBytes,encodePng,nativeFile,nativeRenderMethod,renderMethodFor,groupFaces,sanitizeId,sanitizeNs,validNs,titleCase,uuidFor,blockDoc,geometryDoc,connectionCubes,stairCubes,faceUv,crc32,NATIVE_FILES,NATIVE_ALIAS,FV,upscale,HAVE_CS,zlibStored};
 })();
 /*EXPORT-END*/
 if(typeof module!=='undefined')module.exports=ExportCore;
@@ -3305,7 +3464,8 @@ const ModelCore=(function(){
 'use strict';
 const DIRS=['north','south','east','west','up','down'];
 const MAXB=8*1024*1024,td=new TextDecoder('utf-8');
-const MAX_INSTANCES=64,MAX_PIECES=3000,SCALE_MIN=0.8,SAFE_SCALE=30/32;
+/* textures per block: no limit is applied (the 9-texture failure came from an older build and is unproven); the export side has an off-by-default sheet packer for it */
+const MATS_SAFE=Infinity,MAX_INSTANCES=64,MAX_PIECES=3000,SCALE_MIN=0.8,SAFE_SCALE=30/32;
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const r4=v=>Math.round(v*10000)/10000;
 const sid=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').replace(/_+/g,'_');
@@ -3518,7 +3678,7 @@ function normalizePlates(els,st){
     const k=[0,1,2].find(i=>Math.abs(e.from[i]-e.to[i])<1e-6);
     const d=Object.keys(e.faces)[0];
     if(k===undefined||Object.keys(e.faces).length!==1){keep.push(e);continue;}
-    const r=e.rotation?e.rotation.axis+e.rotation.angle+e.rotation.origin.map(x=>x.toFixed(3)).join():'';
+    const r=e.rotation?JSON.stringify(e.rotation):'';
     const f=e.faces[d],sig=[k,d,r,f.texture,Math.round(e.from[k]*100)/100].join('|');
     const dims=[0,1,2].filter(i=>i!==k),g=groups.get(sig)||[];groups.set(sig,g);
     const box=[Math.min(e.from[dims[0]],e.to[dims[0]]),Math.max(e.from[dims[0]],e.to[dims[0]]),Math.min(e.from[dims[1]],e.to[dims[1]]),Math.max(e.from[dims[1]],e.to[dims[1]])];
@@ -3614,6 +3774,33 @@ async function resolveModel(idx,ref,cache,depth){
   return resolveObj(idx,d,cache,depth);
 }
 
+/* ---- element turns: vanilla {axis,angle,origin} or Blockbench free {x,y,z,origin} (three angles, x applied first, then y, then z) ---- */
+function rotOf(r){
+  if(!r||typeof r!=='object')return null;
+  let a=[0,0,0];
+  if(r.axis&&['x','y','z'].includes(r.axis))a['xyz'.indexOf(r.axis)]=Number(r.angle)||0;
+  else a=[Number(r.x)||0,Number(r.y)||0,Number(r.z)||0];
+  const o=(r.origin||[8,8,8]).map(Number);
+  if(!a.every(isFinite)||!o.every(isFinite)||!a.some(v=>v))return null;
+  return{a,o,rescale:r.rescale,free:!r.axis};
+}
+function matMul(A,B){return A.map((_,i)=>[0,1,2].map(j=>A[i][0]*B[0][j]+A[i][1]*B[1][j]+A[i][2]*B[2][j]));}
+function rotMat(a){
+  const[x,y,z]=a.map(v=>v*Math.PI/180),cx=Math.cos(x),sx=Math.sin(x),cy=Math.cos(y),sy=Math.sin(y),cz=Math.cos(z),sz=Math.sin(z);
+  const X=[[1,0,0],[0,cx,-sx],[0,sx,cx]],Y=[[cy,0,sy],[0,1,0],[-sy,0,cy]],Z=[[cz,-sz,0],[sz,cz,0],[0,0,1]];
+  return matMul(Z,matMul(Y,X));
+}
+function eulerOf(M){
+  const r3=v=>Math.round(v*1000)/1000+0,D=180/Math.PI,sy=-M[2][0],y=Math.asin(Math.max(-1,Math.min(1,sy)));
+  if(Math.abs(sy)<0.99999)return[r3(Math.atan2(M[2][1],M[2][2])*D),r3(y*D),r3(Math.atan2(M[1][0],M[0][0])*D)];
+  return[r3(Math.atan2(-M[1][2],M[1][1])*D),r3(y*D),0];
+}
+/* turn a free-angle piece along with the model: its angles are conjugated by the model's turn */
+function turnFree(fr,T,Ti,origin){
+  const M=matMul(T,matMul(rotMat(fr.a),Ti));
+  return{a:eulerOf(M),o:origin,rescale:fr.rescale,free:true};
+}
+const freeOut=fr=>({x:fr.a[0],y:fr.a[1],z:fr.a[2],origin:fr.o,rescale:fr.rescale});
 /* ---- a model turned about the vertical axis the way a blockstate "y" turns it (clockwise from above), pieces and faces both ---- */
 const CW_FACE={north:'east',east:'south',south:'west',west:'north',up:'up',down:'down'};
 function turnModel(mr,y){
@@ -3625,6 +3812,7 @@ function turnModel(mr,y){
     let faces={};
     for(const d of DIRS){const fc=e.faces&&e.faces[d];if(fc&&typeof fc==='object'){const g=Object.assign({},fc);if(!g.uv)g.uv=defaultUv(d,lo,hi);faces[d]=g;}}
     let ro=e.rotation&&e.rotation.axis?{axis:e.rotation.axis,angle:Number(e.rotation.angle)||0,origin:(e.rotation.origin||[8,8,8]).map(Number),rescale:e.rotation.rescale}:null;
+    let fr=!ro?rotOf(e.rotation):null;
     for(let i=0;i<k;i++){
       const nf={};
       for(const[d,g]of Object.entries(faces)){
@@ -3639,9 +3827,10 @@ function turnModel(mr,y){
       if(ro){
         const o=ro.origin;ro={axis:ro.axis==='x'?'z':ro.axis==='z'?'x':'y',angle:ro.axis==='z'?-ro.angle:ro.angle,origin:[16-o[2],o[1],o[0]],rescale:ro.rescale};
       }
+      if(fr){const o=fr.o;fr=turnFree(fr,rotMat([0,-90,0]),rotMat([0,90,0]),[16-o[2],o[1],o[0]]);}
     }
     const ne=Object.assign({},e,{from:lo,to:hi,faces});
-    if(ro)ne.rotation=ro;
+    if(ro)ne.rotation=ro;else if(fr)ne.rotation=freeOut(fr);
     return ne;
   });
   return Object.assign({},mr,{elements:els});
@@ -3657,6 +3846,7 @@ function turnModelX(mr,x){
     let faces={};
     for(const d of DIRS){const fc=e.faces&&e.faces[d];if(fc&&typeof fc==='object'){const g=Object.assign({},fc);if(!g.uv)g.uv=defaultUv(d,lo,hi);faces[d]=g;}}
     let ro=e.rotation&&e.rotation.axis?{axis:e.rotation.axis,angle:Number(e.rotation.angle)||0,origin:(e.rotation.origin||[8,8,8]).map(Number),rescale:e.rotation.rescale}:null;
+    let fr=!ro?rotOf(e.rotation):null;
     for(let i=0;i<k;i++){
       const nf={};
       for(const[d,g]of Object.entries(faces)){
@@ -3669,8 +3859,9 @@ function turnModelX(mr,x){
       faces=nf;
       const nlo=[lo[0],lo[2],16-hi[1]],nhi=[hi[0],hi[2],16-lo[1]];lo=nlo;hi=nhi;
       if(ro){const o=ro.origin;ro={axis:ro.axis==='y'?'z':ro.axis==='z'?'y':'x',angle:ro.axis==='y'?-ro.angle:ro.angle,origin:[o[0],o[2],16-o[1]],rescale:ro.rescale};}
+      if(fr){const o=fr.o;fr=turnFree(fr,rotMat([-90,0,0]),rotMat([90,0,0]),[o[0],o[2],16-o[1]]);}
     }
-    const ne=Object.assign({},e,{from:lo,to:hi,faces});if(ro)ne.rotation=ro;return ne;
+    const ne=Object.assign({},e,{from:lo,to:hi,faces});if(ro)ne.rotation=ro;else if(fr)ne.rotation=freeOut(fr);return ne;
   });
   return Object.assign({},mr,{elements:els});
 }
@@ -3683,6 +3874,58 @@ function mountSpec(vlist){
   const pick=(f,d)=>{let best=null,bs=1e9;for(const v of vlist){if(v.props.face!==f||v.props.facing!==d)continue;let sc=0;for(const[k,val]of Object.entries(v.props))if(k!=='face'&&k!=='facing'&&val==='true')sc++;if(sc<bs){bs=sc;best=v;}}return best;};
   for(const[f,tag]of[['floor','f'],['ceiling','c'],['wall','w']])for(const d of dirs){const v=pick(f,d);if(!v)return null;shapes.push({key:tag+'_'+d,v});}
   return{kind:'mount',shapes};
+}
+/* ---- beds: part = foot / head (and facing, occupied) are two halves of ONE bed ----
+   One block with a head/foot state; a small script puts the head next to the foot when the bed is placed and takes both away together. */
+function bedSpec(vlist){
+  if(vlist.length<4)return null;
+  const keys=new Set();for(const v of vlist)for(const k of Object.keys(v.props))keys.add(k);
+  if([...keys].some(k=>k!=='facing'&&k!=='part'&&k!=='occupied'))return null;
+  const heads=vlist.filter(v=>v.props.part==='head'),foots=vlist.filter(v=>v.props.part==='foot');
+  if(!heads.length||!foots.length||vlist.some(v=>v.props.part!=='head'&&v.props.part!=='foot'))return null;
+  const occ=v=>v.props.occupied==='true'?1:0;
+  const firstFoot=foots.slice().sort((a,b)=>occ(a)-occ(b))[0],face=firstFoot.props.facing;
+  const head=heads.filter(v=>v.props.facing===face).sort((a,b)=>occ(a)-occ(b))[0];
+  if(!head||firstFoot.x||head.x)return null;
+  const dirList=[firstFoot].concat(foots.filter(v=>v!==firstFoot&&v.props.facing&&occ(v)===occ(firstFoot)));
+  return{kind:'bed',face,shapes:[{key:'foot',v:firstFoot},{key:'head',v:head}],dirList};
+}
+/* ---- candles, lanterns, sconces: facing = up / down / north / east / south / west, with a different model for the floor, the ceiling and the wall ----
+   One block that remembers the face it was placed on. (A block whose six facings are all the same model turned is handled by directionInfo instead.) */
+function faceSpec(vlist){
+  const fv=vlist.filter(v=>v.props.facing!==undefined);
+  if(fv.length<3||!fv.some(v=>v.props.facing==='up'||v.props.facing==='down'))return null;
+  if(!fv.every(v=>OPP[v.props.facing]))return null;
+  const keyOf=v=>Object.keys(v.props).filter(k=>k!=='facing').sort().map(k=>k+'='+v.props[k]).join(',');
+  const want=keyOf(fv.find(v=>v.props.facing==='up')||fv[0]);
+  const pick=f=>{let best=null,bs=1e9;for(const v of fv){if(v.props.facing!==f)continue;let sc=keyOf(v)===want?0:1;for(const[k,val]of Object.entries(v.props))if(k!=='facing'&&val==='true')sc+=2;if(sc<bs){bs=sc;best=v;}}return best;};
+  const order=['up','down','north','east','south','west'],shapes=[];
+  for(const f of order){const v=pick(f);if(v)shapes.push({key:f,v});}
+  if(shapes.length<3)return null;
+  const mdl=new Set(shapes.filter(e=>e.key==='up'||e.key==='down'||e.key==='north').map(e=>e.v.model));
+  if(mdl.size<2)return null;                       /* the same model turned: that is a direction, not a different shape */
+  return{kind:'faces',shapes};
+}
+/* A multipart blockstate with no part that always applies (a candle lantern: one part per light / look / facing): the shape of the
+   first value of every property, with north as the facing, instead of whichever part happens to be listed first. */
+function defaultMultipart(multipart){
+  const vals=new Map(),collect=w=>{
+    if(!w||typeof w!=='object')return;
+    if(Array.isArray(w.OR)){w.OR.forEach(collect);return;}
+    if(Array.isArray(w.AND)){w.AND.forEach(collect);return;}
+    for(const[k,v]of Object.entries(w))for(const x of String(v).split('|')){if(!vals.has(k))vals.set(k,new Set());vals.get(k).add(x);}
+  };
+  for(const p of multipart)if(p&&p.when)collect(p.when);
+  const pickV=(k,set)=>{
+    const a=[...set];
+    if(k==='facing'&&set.has('north'))return'north';
+    if(a.every(v=>/^-?\d+$/.test(v)))return a.sort((x,y)=>x-y)[0];
+    if(set.has('false'))return'false';
+    return a.sort()[0];
+  };
+  const pickAll={};for(const[k,set]of vals)pickAll[k]=pickV(k,set);
+  const hit=multipart.filter(p=>p&&(!p.when||condMatches(p.when,pickAll)));
+  return hit.length?hit:multipart.slice(0,1);
 }
 /* ---- connections: a multipart blockstate whose parts depend on north/east/south/west becomes the 16 connection shapes ---- */
 const CONN_KEYS=['north','east','south','west'],CONN_BIT={north:1,south:2,east:4,west:8};
@@ -3783,15 +4026,13 @@ function wrapModel(m,usedTex,opt){
     if(f.concat(t).some(x=>!isFinite(x))){rep.add('element_skipped');continue;}
     const lo=[Math.min(f[0],t[0]),Math.min(f[1],t[1]),Math.min(f[2],t[2])],hi=[Math.max(f[0],t[0]),Math.max(f[1],t[1]),Math.max(f[2],t[2])];
     const cube={origin:[lo[0]-8,lo[1],lo[2]-8],size:[hi[0]-lo[0],hi[1]-lo[1],hi[2]-lo[2]],uv:{}};
-    const ro=el.rotation;
-    if(ro&&ro.angle&&['x','y','z'].includes(ro.axis)){
-      const o=(ro.origin||[8,8,8]).map(Number),a=Number(ro.angle);
-      if(isFinite(a)&&o.every(isFinite)){
-        cube.pivot=[o[0]-8,o[1],o[2]-8];
-        /* Java element angles -> Bedrock cube rotation (x and y flip sign) */
-        cube.rotation=[ro.axis==='x'?-a:0,ro.axis==='y'?-a:0,ro.axis==='z'?a:0];
-        if(ro.rescale)rep.add('rescale_ignored');
-      }
+    const ro=rotOf(el.rotation);
+    if(ro){
+      const a=ro.a,o=ro.o;
+      cube.pivot=[o[0]-8,o[1],o[2]-8];
+      /* Java angles -> Bedrock cube rotation (x and y flip sign; the three turns apply in the same x, y, z order) */
+      cube.rotation=[a[0]?-a[0]:0,a[1]?-a[1]:0,a[2]];
+      if(ro.rescale)rep.add('rescale_ignored');
     }
     const faces=el.faces||{};
     for(const d of DIRS){
@@ -3900,8 +4141,8 @@ function cubeCorners(c){
   /* Confirmed in game: a stored x or y turn acts the opposite way round to a z turn, and the stored values (-a, -a, +a) put a Java piece turned by +a in its place.
      So the piece really sits where a plain right-handed turn by the Java angle puts it: x and y are read negated, z as stored. */
   const out=[];
-  for(const sg of[c.rotation[2]?1:-1]){
-    const R=c.rotation.map(v=>v*sg*Math.PI/180),p=c.pivot;
+  for(const sg of[1]){
+    const R=[-c.rotation[0],-c.rotation[1],c.rotation[2]].map(v=>v*Math.PI/180),p=c.pivot;
     out.push(pts.map(pt=>{
       let[x,y,z]=[pt[0]-p[0],pt[1]-p[1],pt[2]-p[2]];
       let c1=Math.cos(R[0]),s1=Math.sin(R[0]);[y,z]=[y*c1-z*s1,y*s1+z*c1];
@@ -4203,7 +4444,7 @@ function splitByUse(variants,usedProps){
   const rows=keys.map(k=>{const v=Array.isArray(variants[k])?variants[k][0]:variants[k];return{k,p:parseKey(k),v};}).filter(r=>r.v&&r.v.model);
   if(rows.length<2||rows.some(r=>!Object.keys(r.p).length))return null;
   const vlist=rows.map(r=>({props:r.p,model:r.v.model,x:Number(r.v.x)||0,y:Number(r.v.y)||0}));
-  if(toggleSpec(vlist)||mountSpec(vlist))return null;                 /* doors, trapdoors, gates, buttons: their own rules */
+  if(toggleSpec(vlist)||mountSpec(vlist)||bedSpec(vlist)||faceSpec(vlist))return null;                 /* doors, trapdoors, gates, buttons: their own rules */
   const names=new Set();for(const r of rows)for(const n of Object.keys(r.p))names.add(n);
   /* a property this world's version does not have (the mod may be newer than the map): its default value is the one that applies */
   const absent=[...names].filter(n=>usedProps.every(u=>u[n]===undefined));
@@ -4391,7 +4632,9 @@ function javaMap(o){
   if(togo){
     if(togo.kind==='door'){set('half','lower',{'minecraft:multi_block_part':0});set('half','upper',{'minecraft:multi_block_part':1});}
     if(togo.kind==='trapdoor'){set('half','bottom',{'minecraft:vertical_half':'bottom'});set('half','top',{'minecraft:vertical_half':'top'});}
-    if(togo.kind==='mount'){
+    if(togo.kind==='faces'){for(const e of togo.shapes)set('facing',e.key,{'minecraft:block_face':e.key});}
+    else if(togo.kind==='bed'){set('part','foot',{'{ns}:bed_head':false});set('part','head',{'{ns}:bed_head':true});}
+    else if(togo.kind==='mount'){
       for(const f of['north','east','south','west']){
         combos.push({when:{face:'floor',facing:f},set:{'minecraft:block_face':'up','minecraft:cardinal_direction':f}});
         combos.push({when:{face:'ceiling',facing:f},set:{'minecraft:block_face':'down','minecraft:cardinal_direction':f}});
@@ -4445,9 +4688,9 @@ function javaExtents(models){
     const faces=el.faces||{};if(!DIRS.some(d=>faces[d]&&typeof faces[d]==='object'))continue;
     const lo=[0,1,2].map(i=>Math.min(f[i],t[i])),hi=[0,1,2].map(i=>Math.max(f[i],t[i])),pts=[];
     for(const x of[lo[0],hi[0]])for(const y of[lo[1],hi[1]])for(const z of[lo[2],hi[2]])pts.push([x,y,z]);
-    const ro=el.rotation,ok=ro&&Number(ro.angle)&&['x','y','z'].includes(ro.axis)&&(ro.origin||[8,8,8]).map(Number).every(isFinite);
+    const ro=rotOf(el.rotation);
     for(let k=0;k<1;k++){
-      const q=ok?pts.map(pt=>turnPoint(pt,ro.axis,Number(ro.angle)*(k?-1:1),(ro.origin||[8,8,8]).map(Number))):pts;
+      const q=ro?pts.map(pt=>turnPoint(turnPoint(turnPoint(pt,'x',ro.a[0],ro.o),'y',ro.a[1],ro.o),'z',ro.a[2],ro.o)):pts;
       for(const pt of q){const w=[pt[0]-8,pt[1],pt[2]-8];for(let i=0;i<3;i++){r[k].lo[i]=Math.min(r[k].lo[i],w[i]);r[k].hi[i]=Math.max(r[k].hi[i],w[i]);}}
     }
     n++;
@@ -4551,7 +4794,7 @@ function mergeFit(list,repairs){
   return{verdict:v,java:fs[0].java,out:fs[0].out,reasons,codes,resize,approx:bad};
 }
 /* how trustworthy a converted block is */
-const APPROX=['builtin_shape','texture_fallback','face_dropped','element_skipped','piece_outside_limits','texture_approximate','cube_from_textures','too_many_textures'];
+const APPROX=['builtin_shape','texture_fallback','face_dropped','element_skipped','piece_outside_limits','texture_approximate','cube_from_textures','too_many_textures','mesh_plates'];
 function statusOf(repairs){
   if(!repairs.length)return'clean';
   return repairs.some(r=>APPROX.includes(r))?'approximate':'repaired';
@@ -4678,17 +4921,19 @@ async function scanArchive(archive,opt){
   const skip=(why)=>{stats.skipped++;stats.skips[why]=(stats.skips[why]||0)+1;(stats.skipped_list||(stats.skipped_list=[])).push([curName,why]);};
   /* refs -> {cubes,need,rep} or {skip} */
   async function build(refs,ns){
-    const rep=new Set(),per=[];
+    const rep=new Set(),per=[];let meshApprox=false;
     for(const r0 of refs){
       const r=typeof r0==='string'?r0:r0.model;
       let mr=await resolveModel(idx,r.includes(':')?r:'minecraft:'+r,cache,0);   /* no prefix means the game's own namespace */
       if(mr.missing)return{skip:'model file not found'};
+      if(mr.objStats&&(mr.objStats.cut+mr.objStats.unsupported)>0)meshApprox=true;
       if(typeof r0!=='string'&&r0.x)mr=turnModelX(mr,r0.x);
       if(typeof r0!=='string'&&r0.y)mr=turnModel(mr,r0.y);
       if(mr.code)return{skip:'drawn by game code (not a normal model)'};
       if(mr.loader)return{skip:'needs another model loader ('+String(mr.loader).replace(/^.*:/,'')+')'};
       per.push(mr);
     }
+    if(meshApprox)rep.add('mesh_plates');
     for(const mr of per){
       const all=[...Object.keys(mr.textures)];
       for(const v of all){const r=texRef('#'+v,mr.textures);if(r&&hasTex(r))usedTex.add(r);}
@@ -4825,7 +5070,7 @@ async function scanArchive(archive,opt){
       refs=connMasks[0];
     }else if(bs.variants&&typeof bs.variants==='object'){
       for(const k of Object.keys(bs.variants)){const v=pick(bs.variants[k]);if(v&&v.model)vlist.push({props:parseKey(k),model:v.model,x:Number(v.x)||0,y:Number(v.y)||0});}
-      tog=stk?null:(toggleSpec(vlist,st.sel)||mountSpec(vlist));
+      tog=stk?null:(toggleSpec(vlist,st.sel)||mountSpec(vlist)||bedSpec(vlist)||faceSpec(vlist));
       /* the other hinge side / the lowered in-wall gate: a block of its own, only when its model really differs */
       if(tog&&!st.sel&&(tog.kind==='door'||tog.kind==='gate')){
         const alt=tog.kind==='door'?{sel:{hinge:'right'},suf:'_right',ok:vlist.some(v=>v.props.hinge==='right')&&vlist.some(v=>v.props.hinge==='left')}
@@ -4852,8 +5097,9 @@ async function scanArchive(archive,opt){
     }else if(Array.isArray(bs.multipart)&&(connMasks=connectionMasks(bs.multipart))){
       refs=connMasks[0];
     }else if(Array.isArray(bs.multipart)){
-      const plain=bs.multipart.filter(p=>p&&!p.when);
-      for(const p of(plain.length?plain:bs.multipart.slice(0,1))){const v=pick(p&&p.apply);if(v&&v.model)refs.push((Number(v.x)||Number(v.y))?{model:v.model,x:Number(v.x)||0,y:Number(v.y)||0}:v.model);}
+      let plain=bs.multipart.filter(p=>p&&!p.when);
+      if(!plain.length)plain=defaultMultipart(bs.multipart);
+      for(const p of plain){const v=pick(p&&p.apply);if(v&&v.model)refs.push((Number(v.x)||Number(v.y))?{model:v.model,x:Number(v.x)||0,y:Number(v.y)||0}:v.model);}
     }
     if(!refs.length){skip('no model in blockstate');continue;}
     const main=await build(refs,st.ns);
@@ -4874,7 +5120,7 @@ async function scanArchive(archive,opt){
     if(tog&&!main.multi){
       const sh=[{key:tog.shapes[0].key,u:main}];let okT=true;
       for(const e of tog.shapes.slice(1)){const u=await build([{model:e.v.model,x:e.v.x,y:e.v.y}],st.ns);if(u.skip||u.multi){okT=false;break;}sh.push({key:e.key,u});}
-      if(okT){for(const e of sh)for(const r of e.u.rep)rep.add(r);togo={kind:tog.kind,shapes:sh};}
+      if(okT){for(const e of sh)for(const r of e.u.rep)rep.add(r);togo={kind:tog.kind,face:tog.face,shapes:sh};}
     }
     /* layers block: every thickness is built in its own right, bottom half and (when the Java block has them) top half */
     let stack=null;
@@ -4924,11 +5170,12 @@ async function scanArchive(archive,opt){
     }
     const union=new Map(main.need);if(conn)for(const u of conn.uniq)for(const[k,v]of u.need)union.set(k,v);if(togo)for(const e of togo.shapes)for(const[k,v]of e.u.need)union.set(k,v);if(stack)for(const e of stack.shapes)for(const[k,v]of e.u.need)union.set(k,v);if(upper)for(const[k,v]of upper.need)union.set(k,v);if(flip)for(const[k,v]of flip.need)union.set(k,v);
     if(union.size>MAX_INSTANCES-1&&upper){rep.add('too_many_textures');}
+    {let nat=0;for(const[,v]of union)if(v&&nativeRefs.has(v.ref))nat++;if(nat>MATS_SAFE){skip('uses more different game textures than one block can safely carry');continue;}}
     let id=sid(st.name);if(!id){skip('unusable name');continue;}
     if(seenIds.has(id))id=sid(st.ns+'_'+st.name);
     if(seenIds.has(id)){let k=2;while(seenIds.has(id+'_'+k))k++;id=id+'_'+k;}
     seenIds.set(id,1);
-    const dir=upper||stack||(togo&&togo.kind==='mount')?null:directionInfo(togo&&tog?tog.dirList:vlist),axis=(upper||dir||flip||conn||togo||stack)?null:axisInfo(vlist);
+    const dir=upper||stack||(togo&&(togo.kind==='mount'||togo.kind==='faces'))?null:directionInfo(togo&&tog?tog.dirList:vlist),axis=(upper||dir||flip||conn||togo||stack)?null:axisInfo(vlist);
     if(dir)stats.directional++;if(upper)stats.tall++;if(flip)stats.slabs=(stats.slabs||0)+1;
     if([...union.values()].some(v=>v.tint))stats.tinted++;
     const repairs=[...rep],status=statusOf(repairs);
@@ -4950,7 +5197,7 @@ async function scanArchive(archive,opt){
       const handled=[];
       if(dir)handled.push('facing');if(axis)handled.push('axis');if(upper)handled.push('half');
       if(flip)handled.push('half','type','hanging');
-      if(togo){handled.push('open');if(st.sel&&st.sel.hinge||togo.kind==='door')handled.push('hinge');if(togo.kind==='gate'&&(st.sel||{}).in_wall||togo.kind==='gate'&&vlist.some(v=>v.props.in_wall==='true')&&states.some(x=>x.sel&&x.sel.in_wall&&x.path===st.path))handled.push('in_wall');if(togo.kind==='door')handled.push('half','facing');else if(togo.kind==='trapdoor')handled.push('half','facing');else if(togo.kind==='mount')handled.push('face','facing');else handled.push('facing');}
+      if(togo){handled.push('open');if(st.sel&&st.sel.hinge||togo.kind==='door')handled.push('hinge');if(togo.kind==='gate'&&(st.sel||{}).in_wall||togo.kind==='gate'&&vlist.some(v=>v.props.in_wall==='true')&&states.some(x=>x.sel&&x.sel.in_wall&&x.path===st.path))handled.push('in_wall');if(togo.kind==='door')handled.push('half','facing');else if(togo.kind==='trapdoor')handled.push('half','facing');else if(togo.kind==='mount')handled.push('face','facing');else if(togo.kind==='faces')handled.push('facing');else if(togo.kind==='bed')handled.push('part','occupied','facing');else handled.push('facing');}
       if(conn)handled.push('north','east','south','west','up');
       if(stack){handled.push('layers');if(stack.hasTop&&stack.typeKey)handled.push(stack.typeKey);}
       const lost=lostStates(bs,handled);
@@ -4969,7 +5216,7 @@ async function scanArchive(archive,opt){
       upper:upper?{cubes:upper.cubes,boxes:boxesFor(upper.cubes)}:null,
       multi:multi?{dir:multi.dir,n:multi.n,parts:multi.parts.map(p=>({cubes:p,boxes:boxesFor(p)})),single:multi.single?{cubes:multi.single.cubes,boxes:boxesFor(multi.single.cubes),repairs:multi.single.rep,fit:multi.single.fit}:null}:null,
       stack:stack?{max:stack.max,typeKey:stack.typeKey,hasTop:stack.hasTop,shapes:stack.shapes.map(e=>({key:e.key,n:e.n,top:e.top,cubes:e.u.cubes,boxes:boxesFor(e.u.cubes)}))}:null,
-      toggle:togo?{kind:togo.kind,shapes:togo.shapes.map(e=>({key:e.key,cubes:e.u.cubes,boxes:boxesFor(e.u.cubes)}))}:null,
+      toggle:togo?{kind:togo.kind,face:togo.face,shapes:togo.shapes.map(e=>({key:e.key,cubes:e.u.cubes,boxes:boxesFor(e.u.cubes)}))}:null,
       conn:conn?{masks:conn.shapes.map(u=>({cubes:u.cubes,boxes:boxesFor(u.cubes)}))}:null,
       fit,alt,jmap:(()=>{const m=javaMap({dir,axis,conn,togo,upper,flip,flipMode,vlist,stack}),seen=new Set([...Object.keys(m.props),...(m.connect?['north','south','east','west']:[]),...m.combos.flatMap(c=>Object.keys(c.when)),...Object.keys(st.when||{})]);return{java:st.jname||st.ns+':'+st.name,when:st.when||{},props:m.props,combos:m.combos,connect:m.connect,ignored:[...javaPropNames(bs)].filter(p=>!seen.has(p))};})(),
       flip:flip?{cubes:flip.cubes,boxes:boxesFor(flip.cubes),mode:flipMode}:null,support:flip&&flipMode==='hanging'?'floor_ceiling':null,light:0});
@@ -5017,7 +5264,7 @@ async function loadTextures(scan,blocks,decode,nativeFile){
   }
   return{textures:out,native,missing:miss,tint};
 }
-return{stackSpec,fitToWorld,setWorldUse,splitByUse,splitByLook,lostStates,turnModelX,mountSpec,toggleSpec,axisInfo,turnModel,connectionMasks,measureFit,javaExtents,mergeFit,SAFE_SCALE,planSplit,sliceCube,detectGameShapes,openSides,closeSides,familyOf,groupFamilies,flipPixels,statusOf,directionInfo,scanArchive,loadTextures,resolveModel,defaultUv,rotatePixels,VANILLA,fitCubes,boxesFor,texKey,sid,tintFor,extents,MAX_INSTANCES};
+return{bedSpec,faceSpec,stackSpec,fitToWorld,setWorldUse,splitByUse,splitByLook,lostStates,turnModelX,mountSpec,toggleSpec,axisInfo,turnModel,connectionMasks,measureFit,javaExtents,mergeFit,SAFE_SCALE,planSplit,sliceCube,detectGameShapes,openSides,closeSides,familyOf,groupFamilies,flipPixels,statusOf,directionInfo,scanArchive,loadTextures,resolveModel,defaultUv,rotatePixels,VANILLA,fitCubes,boxesFor,texKey,sid,tintFor,extents,MAX_INSTANCES,MATS_SAFE};
 })();
 /* Java world reader: region (.mca) -> chunk NBT -> block palette and counts. Pure functions; the caller supplies inflate. */
 const WorldCore=(()=>{
@@ -5541,6 +5788,7 @@ function classifyName(stem){
   if(/leaves|_leaf$|^leaf_|foliage|needles|frond/.test(s)&&!/litter|pile|carpet|bud/.test(s))return'leaves';
   if(/(tall|large|double)[a-z_]*(grass|fern|flower|plant)|sunflower|lilac|rose_bush|peony/.test(s)){
     if(upper)return'tall_upper';if(lower)return'tall_lower';
+    if(/sunflower/.test(s)&&/(front|back|head|face)/.test(s))return'tall_upper';   /* the flower head sits in the upper block */
     return null;
   }
   if(/sapling|seedling|grass|fern|flower|bush|shrub|weed|reed|cattail|tulip|daisy|orchid|poppy|dandelion|allium|bluet|cornflower|lily|rose|clover|sprout|tuft|bloom|herb|crop|wheat|carrot|potato|beetroot|stem$|vine$|lavender|violet|hibiscus|bellflower|delphinium|foxglove|hyssop|lupine|mushroom|roots?$/.test(s))return'plant';
@@ -5870,10 +6118,19 @@ function hook(spec,SC){
   const byName=new Map(),rank={leaves:4,tall_upper:3,tall_lower:2,plant:1};
   for(const r of Object.keys(pr.roles))for(const k of pr.roles[r]){const n=k.slice(k.indexOf(':')+1);if(!byName.has(n)||rank[r]>rank[byName.get(n)])byName.set(n,r);}
   const opt={strength:spec.strength==null?1:spec.strength,flutter:spec.flutter!==false,flutterAmount:spec.flutterAmount};
+  /* a block's texture ids carry the folder they came from (minecraft_block_sunflower_bottom) and the extra layers of a texture set
+     (_fx glow, _t tint mask, _mx...): the shader knows the plain name, so those are taken off before looking it up */
+  const plain=id=>{
+    let n=String(id).toLowerCase().replace(/^.*[\/:]/,'').replace(/\.png$/,'');
+    n=n.replace(/^(?:[a-z0-9]+_)?blocks?_/,'');
+    for(let i=0;i<3;i++)n=n.replace(/_(fx|mx|t)$/,'');
+    return n;
+  };
   const classify=id=>{
-    const n=String(id).toLowerCase();
+    const n0=String(id).toLowerCase(),n=plain(id);
+    if(byName.has(n0))return byName.get(n0);
     if(byName.has(n))return byName.get(n);
-    return spec.guess===false?null:SC.classifyName(n);
+    return spec.guess===false?null:(SC.classifyName(n)||SC.classifyName(n0));
   };
   return{
     vanilla:spec.vanilla===false?null:(items,enc)=>bakeVanilla(items,profile,enc,opt),
@@ -7252,7 +7509,7 @@ function previewBlock(b0){
 }
 const blockedByStrict=w=>strictOn()&&w.kind==='shape'&&!w.set.game&&(()=>{const f=effFit(w.b);return !!f&&f.verdict==='inspect';})();
 const BLANK='data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
-const WHY_BAD={builtin_shape:'rebuilt in the game\u2019s usual shape from the pack\u2019s textures, so check the picture',texture_fallback:'a missing texture was swapped for another one',face_dropped:'a side with no texture was left blank',element_skipped:'a broken piece was left out',piece_outside_limits:'a piece that was too big for Minecraft was left out',texture_approximate:'uses a game texture that cannot be turned, so a side may look off',cube_from_textures:'the shape was not understood, so it became a plain cube',too_many_textures:'it had too many textures, some were swapped'};
+const WHY_BAD={builtin_shape:'rebuilt in the game\u2019s usual shape from the pack\u2019s textures, so check the picture',texture_fallback:'a missing texture was swapped for another one',face_dropped:'a side with no texture was left blank',element_skipped:'a broken piece was left out',piece_outside_limits:'a piece that was too big for Minecraft was left out',texture_approximate:'uses a game texture that cannot be turned, so a side may look off',cube_from_textures:'the shape was not understood, so it became a plain cube',too_many_textures:'it had too many textures, some were swapped',mesh_plates:'a 3D mesh rebuilt from flat plates and thin strips, so curved parts look faceted and one-sided'};
 const WHY_FIX={closed_open_side:'a hole in the outer edge was closed',split_into_blocks:'it is bigger than one block and can be split across several blocks (see the sideways option)',texture_rotated_copy:'some sides were turned to match',uv_default:'texture positions were filled in',uv_clamped:'texture positions were pulled inside',scaled_to_limit:'shrunk a little to fit',nudged_to_limit:'a tilted piece was moved slightly to fit',clamped_to_limits:'trimmed to fit the block size',rescale_ignored:'a stretch setting was ignored'};
 const cap1=t=>t.charAt(0).toUpperCase()+t.slice(1);
 function whyText(b0){
@@ -7603,6 +7860,12 @@ async function makePreview(w){
       const o=c.origin.slice();o[a]+=16*(k+1);const n=Object.assign({},c,{origin:o});
       if(c.pivot){const pv=c.pivot.slice();pv[a]+=16*(k+1);n.pivot=pv;}
       cubes.push(n);}});
+  }
+  /* two-part blocks drawn whole: a bed's head next to its foot, a door's upper half above the lower */
+  if(b.toggle&&(b.toggle.kind==='bed'||b.toggle.kind==='door')){
+    const part=b.toggle.shapes.find(s=>s.key===(b.toggle.kind==='bed'?'head':'uc'));
+    const off=b.toggle.kind==='door'?[0,16,0]:({north:[0,0,-16],south:[0,0,16],east:[16,0,0],west:[-16,0,0]}[b.toggle.face]||[0,0,16]);
+    if(part)for(const c of part.cubes.slice(0,300)){const n=Object.assign({},c,{origin:c.origin.map((v,i)=>v+off[i])});if(c.pivot)n.pivot=c.pivot.map((v,i)=>v+off[i]);cubes.push(n);}
   }
   if(b.upper)cubes=cubes.concat(b.upper.cubes.slice(0,200).map(c=>Object.assign({},c,{origin:[c.origin[0],c.origin[1]+16,c.origin[2]],pivot:c.pivot?[c.pivot[0],c.pivot[1]+16,c.pivot[2]]:undefined})));
   return isoPicture(cubes,texOf,S).toDataURL();
